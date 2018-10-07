@@ -36,10 +36,11 @@ public:
                 {
                     int num = i + Nx * j + Nx * Ny * k;
                     double sum = 0;
+                    double s = sin(i + j + 1);
 
                     if (k > 0)
                     {
-                        A[ia] = sin(i + j + 1);
+                        A[ia] = s;
                         sum += A[ia++];
                         JA[ija++] = num - Nx * Ny;
                         cnt++;
@@ -47,7 +48,7 @@ public:
 
                     if (j > 0)
                     {
-                        A[ia] = sin(i + j + 1);
+                        A[ia] = s;
                         sum += A[ia++];
                         JA[ija++] = num - Nx;
                         cnt++;
@@ -55,7 +56,7 @@ public:
 
                     if (i > 0)
                     {
-                        A[ia] = sin(i + j + 1);
+                        A[ia] = s;
                         sum += A[ia++];
                         JA[ija++] = num - 1;
                         cnt++;
@@ -65,7 +66,7 @@ public:
 
                     if (i < Nx - 1)
                     {
-                        A[ia] = sin(i + j + 1);
+                        A[ia] = s;
                         sum += A[ia++];
                         JA[ija++] = num + 1;
                         cnt++;
@@ -73,7 +74,7 @@ public:
 
                     if (j < Ny - 1)
                     {
-                        A[ia] = sin(i + j + 1);
+                        A[ia] = s;
                         sum += A[ia++];
                         JA[ija++] = num + Nx;
                         cnt++;
@@ -81,7 +82,7 @@ public:
 
                     if (k < Nz - 1)
                     {
-                        A[ia] = sin(i + j + 1);
+                        A[ia] = s;
                         sum += A[ia++];
                         JA[ija++] = num + Nx * Ny;
                         cnt++;
@@ -126,6 +127,7 @@ public:
             cout << IA[i] << ' ';
         cout << endl;
 
+        cout << 'Matrix' << endl;
         for (int i = 0; i < sizeIA; i++)
         {
             for (int j = 0; j < sizeIA; j++)
