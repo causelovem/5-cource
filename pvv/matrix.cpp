@@ -10,16 +10,16 @@ class Vector;
 class Matrix
 {
     private:
-        double *A;
-        int *JA;
-        int *IA;
-        int sizeIA;
-        int sizeA;
+        double *A = NULL;
+        int *JA = NULL;
+        int *IA = NULL;
+        int sizeIA = 0;
+        int sizeA = 0;
 
     public:
         Matrix(int Nx, int Ny, int Nz)
         {
-            sizeIA = Nx * Ny * Nz;
+            sizeIA = Nx * Ny * Nz + 1;
             int corner = 4 * 8; // 3 soseda
             int edge = 5 * 4 * ((Nx - 2) + (Ny - 2) + (Nz - 2)); // 4 soseda
             int face = 6 * 2 * (((Nx - 2) * (Ny - 2)) + ((Nx - 2) * (Nz - 2)) + ((Ny - 2) * (Nz - 2))); // Xy Xz Yz
@@ -99,11 +99,65 @@ class Matrix
                     }
         }
 
+        Matrix(const Matrix &mat)
+        {
+            sizeIA = mat.sizeIA;
+            sizeA = mat.sizeA;
+
+            IA = new int [sizeIA];
+            JA = new int [sizeA];
+            A = new double [sizeA];  
+            
+            for (int i = 0; i < sizeA; i++)
+            {
+                JA[i] = mat.JA[i];
+                A[i] = mat.A[i];
+            }   
+
+            for (int i = 0; i < sizeIA; i++)
+                IA[i] = mat.IA[i];
+        }
+
         ~Matrix()
         {
             delete [] A;
             delete [] JA;
             delete [] IA;
+
+            sizeIA = 0;
+            sizeA = 0;
+        }
+
+        Matrix(const Matrix &mat, int k = 1)
+        {
+            for (int i = 0; i < mat.sizeIA; i++)
+                if (mat.get(i, i) > 0.00001)
+                    sizeA++;
+
+            sizeIA = mat.sizeIA;
+
+            IA = new int [sizeIA];
+            JA = new int [sizeA];
+            A = new double [sizeA];
+            IA[0] = 0;
+            int cnt = 0;
+
+            int ia = 0, iia = 1;
+
+            for (int i = 0; i < sizeIA - 1; i++)
+            {
+                double diag = mat.get(i, i);
+
+                if (diag > 0.000001)
+                {
+                    A[ia] = 1 / diag;
+                    // A[ia] = diag;
+                    JA[ia++] = i;
+                    cnt++;
+                }
+
+                IA[iia++] = cnt;
+            }
         }
 
         double get(int i, int j) const
@@ -130,31 +184,41 @@ class Matrix
             for (int i = 0; i < sizeIA; i++)
                 cout << IA[i] << ' ';
             cout << endl;
+
+            return;
         }
 
         void print(int flg = 0)
         {
-            if (flg == 0)
+            if (flg == 1)
                 printCSR();
 
             cout << "Matrix" << endl;
-            for (int i = 0; i < sizeIA; i++)
+            for (int i = 0; i < sizeIA - 1; i++)
             {
-                for (int j = 0; j < sizeIA; j++)
+                for (int j = 0; j < sizeIA - 1; j++)
                     cout << get(i, j) << ' ';
                 cout << endl;
             }
+
+            return;
         }
 
-        friend void SpMV(const Matrix &mat, const Vector &vec, Vector &res);
+        friend int SpMV(const Matrix &mat, const Vector &vec, Vector &res);
 };
 
 class Vector
 {
     private:
-        double *A;
-        int size;
+        double *A = NULL;
+        int size = 0;
     public:
+        Vector()
+        {
+            size = 0;
+            A = NULL;
+        }
+
         Vector(int s)
         {
             size = s;
@@ -162,6 +226,15 @@ class Vector
 
             for (int i = 0; i < size; i++)
                 A[i] = rand() % 100;
+        }
+
+        Vector(const Vector &vec)
+        {
+            size = vec.size;
+            A = new double [size];
+
+            for (int i = 0; i < size; i++)
+                A[i] = vec.A[i];
         }
 
         Vector(int s, double c)
@@ -173,9 +246,19 @@ class Vector
                 A[i] = c;
         }
 
+        Vector(int s, double *vec)
+        {
+            size = s;
+            A = new double [s];
+
+            for (int i = 0; i < size; i++)
+                A[i] = vec[i];
+        }
+
         ~Vector()
         {
             delete [] A;
+            size = 0;
         }
 
         Vector operator = (const Vector &vec)
@@ -213,7 +296,7 @@ class Vector
         friend double dot(const Vector &vec1, const Vector &vec2)
         {
             if (vec1.size != vec2.size)
-                cout << "Can't dot two vectors: different lenghts!" << endl;
+                cout << "Can't dot: different lenghts!" << endl;
 
             double res = 0;
 
@@ -223,30 +306,119 @@ class Vector
             return res;
         }
 
-        friend void axpby(Vector &vec1, const Vector &vec2, double a, double b)
+        friend int axpby(Vector &vec1, const Vector &vec2, double a, double b)
         {
             if (vec1.size != vec2.size)
-                cout << "Can't axpby two vectors: different lenghts!" << endl;
+            {
+                cout << "Can't axpby: different lenghts!" << endl;
+                return -1;
+            }
 
             for (int i = 0; i < vec1.size; i++)
                 vec1.A[i] = a * vec1.A[i] + b * vec2.A[i];
 
-            return;
+            return 0;
         }
 
-        friend void SpMV(const Matrix &mat, const Vector &vec, Vector &res)
+        friend int SpMV(const Matrix &mat, const Vector &vec, Vector &res)
         {
-            if (mat.sizeIA != vec.size)
+            if (mat.sizeIA - 1 != vec.size)
+            {
                 cout << "Can't SpMV: different lenghts!" << endl;
+                return -1;
+            }
 
             res = 0;
             for (int i = 0; i < vec.size; i++)
                 for (int j = 0; j < vec.size; j++)
                     res.A[i] += mat.get(i, j) * vec.A[j];
 
-            return;
+            return 0;
         }
 };
+
+
+int solve(int N, Matrix &A, Vector &BB, double tol, int maxit)
+{
+    int nit = 0, I = 0;
+    Vector XX(N, 0.0);
+    Matrix DD(A, 1);
+    // A.print();
+    // DD.print();
+    // return 0;
+    Vector PP(N, 0.0), PP2(N, 0.0), RR(N, 0.0), RR2(N, 0.0), TT(N, 0.0), VV(N, 0.0), SS(N, 0.0), SS2(N, 0.0);
+    double initres = 0.0, res = 0.0, mineps = 1e-15, eps = 0.0;
+    double Rhoi_1 = 1.0, alphai = 1.0, wi = 1.0, betai_1 = 1.0, Rhoi_2 = 1.0, alphai_1 = 1.0, wi_1 = 1.0, RhoMin = 1e-60;
+
+    RR = BB;
+    RR2 = BB;
+    initres = sqrt(dot(RR, RR));
+    eps = max(mineps, tol * initres);
+    res = initres;
+
+
+    for (I = 0; I < maxit; I++)
+    {
+        if (res < eps)
+            break;
+        if (res > initres / mineps)
+            return -1;
+
+        if (I == 0)
+            Rhoi_1 = initres * initres;
+        else
+            Rhoi_1 = dot(RR2, RR);
+        if (fabs(Rhoi_1) < RhoMin)
+            return -1;
+
+        if (I == 0)
+            PP = RR;
+        else
+        {
+            betai_1 = (Rhoi_1 * alphai_1) / (Rhoi_2  * wi_1);
+            axpby(PP, RR, betai_1, 1.0);
+            axpby(PP, VV, 1.0, -wi_1 * betai_1);
+        }
+
+        SpMV(DD, PP, PP2);
+        SpMV(A, PP2, VV);
+
+        alphai = dot(RR2, VV);
+
+        if (fabs(alphai) < RhoMin)
+            return -3;
+
+        alphai = Rhoi_1 / alphai;
+
+        SS = RR;
+        axpby(SS, VV, 1.0, -alphai);
+
+        SpMV(DD, SS, SS2);
+        SpMV(A, SS2, TT);
+
+        wi = dot(TT, TT);
+        if (fabs(wi) < RhoMin)
+            return -4;
+        wi = dot(TT, SS) / wi;
+        if (fabs(wi) < RhoMin)
+            return -5;
+
+        axpby(XX, PP2, 1.0, alphai);
+        axpby(XX, SS2, 1.0, wi);
+
+        RR=SS;
+
+        axpby(RR, TT, 1.0, -wi);
+
+        alphai_1 = alphai;
+
+        Rhoi_2 = Rhoi_1;
+        wi_1 = wi;
+
+        res = sqrt(dot(RR, RR));
+    }
+    return I;
+}
 
 int main ()
 {
@@ -273,10 +445,18 @@ int main ()
 
     // R.print();
 
-    Matrix A(2, 2, 2);
-    Vector BB(8);
 
+    // Matrix A(2, 2, 2);
+    // A.print(1);
+    // Matrix B(A);
+    // B.print(1);
+
+
+    int N = 8, maxit = 10, tol = 0.0;
+    Matrix A(2, 2, 2);
+    Vector BB(N);
     
+    cout << solve(N, A, BB, tol, maxit) << endl;
 
     return 0;
 }
