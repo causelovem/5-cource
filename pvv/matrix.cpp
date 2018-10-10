@@ -328,10 +328,23 @@ class Vector
                 return -1;
             }
 
-            res = 0;
-            for (int i = 0; i < vec.size; i++)
-                for (int j = 0; j < vec.size; j++)
-                    res.A[i] += mat.get(i, j) * vec.A[j];
+            // res = 0;
+            // for (int i = 0; i < vec.size; i++)
+            //     for (int j = 0; j < vec.size; j++)
+            //         res.A[i] += mat.get(i, j) * vec.A[j];
+
+            // res.print();
+            // res = 0;
+
+            // faster
+            for (int i = 0; i < mat.sizeIA - 1; i++)
+            {
+                res.A[i] = 0;
+                for (int j = mat.IA[i]; j < mat.IA[i + 1]; j++)
+                    res.A[i] += mat.A[j] * vec.A[mat.JA[j]];
+            }
+            // res.print();
+
 
             return 0;
         }
@@ -455,6 +468,9 @@ int main ()
     int N = 8, maxit = 10, tol = 0.0;
     Matrix A(2, 2, 2);
     Vector BB(N);
+
+    // Vector tmp(N);
+    // SpMV(A, BB, tmp);
     
     cout << solve(N, A, BB, tol, maxit) << endl;
 
