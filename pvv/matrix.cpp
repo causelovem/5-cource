@@ -2,6 +2,8 @@
 #include <cstdlib>
 #include <cmath>
 #include <ctime>
+#include <cstring>
+#include <omp.h>
 
 using namespace std;
 
@@ -107,15 +109,19 @@ class Matrix
             IA = new int [sizeIA];
             JA = new int [sizeA];
             A = new double [sizeA];  
-            
-            for (int i = 0; i < sizeA; i++)
-            {
-                JA[i] = mat.JA[i];
-                A[i] = mat.A[i];
-            }   
 
-            for (int i = 0; i < sizeIA; i++)
-                IA[i] = mat.IA[i];
+            memcpy(JA, mat.JA, sizeA * sizeof(int));
+            memcpy(A, mat.A, sizeA * sizeof(double));
+            memcpy(IA, mat.IA, sizeA * sizeof(int));
+            
+            // for (int i = 0; i < sizeA; i++)
+            // {
+            //     JA[i] = mat.JA[i];
+            //     A[i] = mat.A[i];
+            // }   
+
+            // for (int i = 0; i < sizeIA; i++)
+            //     IA[i] = mat.IA[i];
         }
 
         ~Matrix()
@@ -233,8 +239,10 @@ class Vector
             size = vec.size;
             A = new double [size];
 
-            for (int i = 0; i < size; i++)
-                A[i] = vec.A[i];
+            memcpy(A, vec.A, size * sizeof(double));
+
+            // for (int i = 0; i < size; i++)
+            //     A[i] = vec.A[i];
         }
 
         Vector(int s, double c)
@@ -251,8 +259,10 @@ class Vector
             size = s;
             A = new double [s];
 
-            for (int i = 0; i < size; i++)
-                A[i] = vec[i];
+            memcpy(A, vec, size * sizeof(double));
+
+            // for (int i = 0; i < size; i++)
+            //     A[i] = vec[i];
         }
 
         ~Vector()
@@ -269,8 +279,11 @@ class Vector
             size = vec.size;
             A = new double [size];
 
-            for (int i = 0; i < size; i++)
-                A[i] = vec.A[i];
+            memcpy(A, vec.A, size * sizeof(double));
+
+            // for (int i = 0; i < size; i++)
+            //     A[i] = vec.A[i];
+            // (*this).print();
 
             return *this;
         }
@@ -433,7 +446,7 @@ int solve(int N, Matrix &A, Vector &BB, double tol, int maxit)
     return I;
 }
 
-int main ()
+int main (int argc, char **argv)
 {
     srand(time(0));
 
@@ -464,13 +477,24 @@ int main ()
     // Matrix B(A);
     // B.print(1);
 
+    if (argc != 6)
+    {
+        cout << "Wrong number of in params, check your command" << endl;
+        cout << "<Nx> <Ny> <Nz> <tol> <maxi >" << endl;
+        return -1;
+    }
 
-    int N = 8, maxit = 10, tol = 0.0;
-    Matrix A(2, 2, 2);
+    int Nx = atoi(argv[1]), Ny = atoi(argv[2]), Nz = atoi(argv[3]);
+    int N = Nx * Ny * Nz, maxit = atoi(argv[5]);
+    double tol = atof(argv[4]);
+
+    Matrix A(Nx, Ny, Nz);
     Vector BB(N);
 
-    // Vector tmp(N);
-    // SpMV(A, BB, tmp);
+    Vector tmp(N);
+    SpMV(A, BB, tmp);
+
+    tmp = BB;
     
     cout << solve(N, A, BB, tol, maxit) << endl;
 
