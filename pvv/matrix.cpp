@@ -7,6 +7,8 @@
 
 using namespace std;
 
+double globtime = 0.0;
+
 class Vector;
 
 class Matrix
@@ -27,7 +29,6 @@ class Matrix
             int face = 6 * 2 * (((Nx - 2) * (Ny - 2)) + ((Nx - 2) * (Nz - 2)) + ((Ny - 2) * (Nz - 2))); // Xy Xz Yz
             int inner = 7 * (Nx - 2) * (Ny - 2) * (Nz - 2); // 6 sosedey
             sizeA = corner + edge + face + inner;
-
             // cout << corner << ' ' << edge << ' ' << face << ' ' << inner << endl;
 
             IA = new int [sizeIA];
@@ -117,12 +118,14 @@ class Matrix
             // memcpy(A, mat.A, sizeA * sizeof(double));
             // memcpy(IA, mat.IA, sizeIA * sizeof(int));
             
+            #pragma omp parallel for
             for (int i = 0; i < sizeA; i++)
             {
                 JA[i] = mat.JA[i];
                 A[i] = mat.A[i];
             }   
 
+            #pragma omp parallel for
             for (int i = 0; i < sizeIA; i++)
                 IA[i] = mat.IA[i];
         }
@@ -139,7 +142,7 @@ class Matrix
 
         Matrix(const Matrix &mat, int k)
         {
-            for (int i = 0; i < mat.sizeIA; i++)
+            for (int i = 0; i < mat.sizeIA - 1; i++)
                 if (mat.get(i, i) > 0.00001)
                     sizeA++;
 
@@ -226,20 +229,15 @@ class Vector
         double *A = NULL;
         int size = 0;
     public:
-        Vector()
-        {
-            size = 0;
-            A = NULL;
-        }
-
         Vector(int s)
         {
             size = s;
             A = new double [s];
 
+            #pragma omp parallel for
             for (int i = 0; i < size; i++)
-                // A[i] = rand() % 10;
                 A[i] = sin(i);
+                // A[i] = rand() % 10;
         }
 
         Vector(const Vector &vec)
@@ -249,6 +247,7 @@ class Vector
 
             // memcpy(A, vec.A, size * sizeof(double));
 
+            #pragma omp parallel for
             for (int i = 0; i < size; i++)
                 A[i] = vec.A[i];
         }
@@ -258,6 +257,7 @@ class Vector
             size = s;
             A = new double [size];
 
+            #pragma omp parallel for
             for (int i = 0; i < size; i++)
                 A[i] = c;
         }
@@ -269,6 +269,7 @@ class Vector
 
             // memcpy(A, vec, size * sizeof(double));
 
+            #pragma omp parallel for
             for (int i = 0; i < size; i++)
                 A[i] = vec[i];
         }
@@ -287,19 +288,60 @@ class Vector
             size = vec.size;
             A = new double [size];
 
+            const int ss = (size / 4) * 4;
+            // float time = omp_get_wtime();
+
             // memcpy(A, vec.A, size * sizeof(double));
 
-            for (int i = 0; i < size; i++)
+            #pragma omp parallel for
+            for (int i = 0; i < ss; i += 4)
+            {
                 A[i] = vec.A[i];
-            // (*this).print();
+                A[i + 1] = vec.A[i + 1];
+                A[i + 2] = vec.A[i + 2];
+                A[i + 3] = vec.A[i + 3];
+            }
+
+            // #pragma omp parallel for
+            for (int i = ss; i < size; i++)
+                A[i] = vec.A[i];
+
+            // #pragma omp parallel for
+            // for (int i = 0; i < size; i++)
+            //     A[i] = vec.A[i];
+
+            // time = omp_get_wtime() - time;
+            // globtime += time;
+            // cout << "> Time of computation = " << (time) << endl;
 
             return *this;
         }
 
         Vector operator = (const double c)
         {
-            for (int i = 0; i < size; i++)
+            const int ss = (size / 4) * 4;
+
+            // float time = omp_get_wtime();
+            #pragma omp parallel for
+            for (int i = 0; i < ss; i += 4)
+            {
                 A[i] = c;
+                A[i + 1] = c;
+                A[i + 2] = c;
+                A[i + 3] = c;
+            }
+
+            // #pragma omp parallel for
+            for (int i = ss; i < size; i++)
+                A[i] = c;
+
+            // #pragma omp parallel for
+            // for (int i = 0; i < size; i++)
+            //     A[i] = c;
+
+            // time = omp_get_wtime() - time;
+            // globtime += time;
+            // cout << "> Time of computation = " << (time) << endl;
 
             return *this;
         }
@@ -326,8 +368,29 @@ class Vector
 
             double res = 0.0;
 
-            for (int i = 0; i < vec1.size; i++)
+            const int ss = (vec1.size / 4) * 4;
+            // float time = omp_get_wtime();
+
+            #pragma omp parallel for reduction(+:res)
+            for (int i = 0; i < ss; i += 4)
+            {
                 res += vec1.A[i] * vec2.A[i];
+                res += vec1.A[i + 1] * vec2.A[i + 1];
+                res += vec1.A[i + 2] * vec2.A[i + 2];
+                res += vec1.A[i + 3] * vec2.A[i + 3];
+            }
+
+            // #pragma omp parallel for reduction(+:res)
+            for (int i = ss; i < vec1.size; i++)
+                res += vec1.A[i] * vec2.A[i];
+
+            // #pragma omp parallel for reduction(+:res)
+            // for (int i = 0; i < vec1.size; i++)
+            //     res += vec1.A[i] * vec2.A[i];
+
+            // time = omp_get_wtime() - time;
+            // globtime += time;
+            // cout << "> Time of computation = " << (time) << endl;
 
             return res;
         }
@@ -340,8 +403,29 @@ class Vector
                 return -1;
             }
 
-            for (int i = 0; i < vec1.size; i++)
+            const int ss = (vec1.size / 4) * 4;
+            // float time = omp_get_wtime();
+
+            #pragma omp parallel for
+            for (int i = 0; i < ss; i += 4)
+            {
                 vec1.A[i] = a * vec1.A[i] + b * vec2.A[i];
+                vec1.A[i + 1] = a * vec1.A[i + 1] + b * vec2.A[i + 1];
+                vec1.A[i + 2] = a * vec1.A[i + 2] + b * vec2.A[i + 2];
+                vec1.A[i + 3] = a * vec1.A[i + 3] + b * vec2.A[i + 3];
+            }
+
+            // #pragma omp parallel for
+            for (int i = ss; i < vec1.size; i++)
+                vec1.A[i] = a * vec1.A[i] + b * vec2.A[i];
+
+            // #pragma omp parallel for
+            // for (int i = 0; i < vec1.size; i++)
+            //     vec1.A[i] = a * vec1.A[i] + b * vec2.A[i];
+
+            // time = omp_get_wtime() - time;
+            // globtime += time;
+            // cout << "> Time of computation = " << (time) << endl;
 
             return 0;
         }
@@ -354,34 +438,19 @@ class Vector
                 return -1;
             }
 
-            // res = 0.0;
-            // for (int i = 0; i < vec.size; i++)
-            // {
-            //     for (int j = 0; j < vec.size; j++)
-            //     {
-            //         cout << res.A[i] << endl;
-            //         res.A[i] += mat.get(i, j) * vec.A[j];
-            //         cout << mat.get(i, j) << ' ' << vec.A[j] << ' ' << res.A[i] << endl;
-            //     }
-            //     return 0;
-            // }
-
             // for (int i = 0; i < vec.size; i++)
             //     for (int j = 0; j < vec.size; j++)
             //         res.A[i] += mat.get(i, j) * vec.A[j];
 
-            // res.print();
             res = 0.0;
 
-            // faster
+            #pragma omp parallel for
             for (int i = 0; i < mat.sizeIA - 1; i++)
             {
                 res.A[i] = 0.0;
                 for (int j = mat.IA[i]; j < mat.IA[i + 1]; j++)
                     res.A[i] += mat.A[j] * vec.A[mat.JA[j]];
             }
-            // res.print();
-
 
             return 0;
         }
@@ -467,16 +536,16 @@ int solve(int N, Matrix &A, Vector &BB, double tol, int maxit)
     }
     cout << "> Discrepancy = " << res << endl;
 
-    Vector check(N, 0.0);
+    // Vector check(N, 0.0);
 
-    SpMV(A, XX, check);
+    // SpMV(A, XX, check);
 
-    cout << "> Solution" << endl;
-    XX.print();
-    cout << "> Ax" << endl;
-    check.print();
-    cout << "> BB" << endl;
-    BB.print();
+    // cout << "> Solution" << endl;
+    // XX.print();
+    // cout << "> Ax" << endl;
+    // check.print();
+    // cout << "> BB" << endl;
+    // BB.print();
 
     return I;
 }
@@ -485,39 +554,14 @@ int main (int argc, char **argv)
 {
     srand(time(0));
 
-    // Matrix A(2, 2, 2);
-    // // A.print();
-
-    // Vector B(10);
-    // Vector C(10, 1);
-
-    // B.print();
-    // C.print();
-
-    // cout << dot(B, C) << endl;
-
-    // axpby(B, C, 1, 2);
-    // B.print();
-
-    // Vector R(8, 0);
-    // Vector V(8);
-
-    // SpMV(A, V, R);
-
-    // R.print();
-
-
-    // Matrix A(2, 2, 2);
-    // A.print(1);
-    // Matrix B(A);
-    // B.print(1);
-
-    if (argc != 6)
+    if (argc != 7)
     {
         cout << "> Wrong number of in params, check your command" << endl;
-        cout << "<Nx> <Ny> <Nz> <tol> <maxit>" << endl;
+        cout << "<Nx> <Ny> <Nz> <tol> <maxit> <omp>" << endl;
         return -1;
     }
+
+    omp_set_num_threads(atoi(argv[6]));
 
     int Nx = atoi(argv[1]), Ny = atoi(argv[2]), Nz = atoi(argv[3]);
     int N = Nx * Ny * Nz, maxit = atoi(argv[5]);
@@ -526,52 +570,12 @@ int main (int argc, char **argv)
 
     Matrix A(Nx, Ny, Nz);
     Vector BB(N);
-
-    // A.print();
-
-    // A.print(1);
-
-    // Vector tmp(N, 1.0);
-
-    // BB.print();
-    // tmp.print();
-    // tmp = BB;
-    // tmp.print();
-    // SpMV(A, BB, tmp);
-
-    // double r = 0.0;
-    // for (int i = 0; i < 27; i++)
-    // {
-    //     r = 0.0;
-    //     for (int j = 0; j < 27; j++)
-    //     {
-    //         r += A.get(i, j);
-    //     }
-    //     cout << r << ' ';
-    // }
-    // cout << endl;
-
-    // SpMV(A, tmp, BB);
-
-    // BB.print();
-
-
-    // tmp.print();
-    // axpby(tmp, tmp, 1.0, 1.0);
-    // tmp.print();
-    // cout << dot(tmp, tmp) << endl;
-    // return 0;
-
-    // A.print();
-    // BB.print();
-    // tmp.print();
-
-
-    // RR.print();
-    // BB.print();
-    // check.print();
+ 
     
+    float time = omp_get_wtime();
     cout << "> Numder of iters = " << solve(N, A, BB, tol, maxit) << endl;
+    cout << "> Final time of computation = " << (omp_get_wtime() - time) << endl;
+    // cout << "> Operation time = " << globtime << endl;
 
     return 0;
 }
