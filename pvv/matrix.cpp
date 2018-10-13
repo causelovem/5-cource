@@ -25,8 +25,10 @@ class Matrix
             int corner = 4 * 8; // 3 soseda
             int edge = 5 * 4 * ((Nx - 2) + (Ny - 2) + (Nz - 2)); // 4 soseda
             int face = 6 * 2 * (((Nx - 2) * (Ny - 2)) + ((Nx - 2) * (Nz - 2)) + ((Ny - 2) * (Nz - 2))); // Xy Xz Yz
-            int inner = 7 * (Nx - 2) * (Ny - 2) * (Nz - 2); // 5 sosedey
+            int inner = 7 * (Nx - 2) * (Ny - 2) * (Nz - 2); // 6 sosedey
             sizeA = corner + edge + face + inner;
+
+            // cout << corner << ' ' << edge << ' ' << face << ' ' << inner << endl;
 
             IA = new int [sizeIA];
             JA = new int [sizeA];
@@ -41,7 +43,7 @@ class Matrix
                     for (int i = 0; i < Nx; i++)
                     {
                         int num = i + Nx * j + Nx * Ny * k;
-                        double sum = 0;
+                        double sum = 0.0;
                         double s = sin(i + j + 1);
 
                         if (k > 0)
@@ -73,6 +75,7 @@ class Matrix
                         if (i < Nx - 1)
                         {
                             A[ia] = s;
+                            // A[ia] = sin(i + j + 2);
                             sum += A[ia++];
                             JA[ija++] = num + 1;
                             cnt++;
@@ -81,6 +84,7 @@ class Matrix
                         if (j < Ny - 1)
                         {
                             A[ia] = s;
+                            // A[ia] = sin(i + j + 2);
                             sum += A[ia++];
                             JA[ija++] = num + Nx;
                             cnt++;
@@ -94,8 +98,7 @@ class Matrix
                             cnt++;
                         }
 
-
-                        A[tia] = sum * 1.1;
+                        A[tia] = fabs(sum) * 1.1;
                         JA[tija] = num;
                         IA[iia++] = ++cnt;
                     }
@@ -110,18 +113,18 @@ class Matrix
             JA = new int [sizeA];
             A = new double [sizeA];  
 
-            memcpy(JA, mat.JA, sizeA * sizeof(int));
-            memcpy(A, mat.A, sizeA * sizeof(double));
-            memcpy(IA, mat.IA, sizeA * sizeof(int));
+            // memcpy(JA, mat.JA, sizeA * sizeof(int));
+            // memcpy(A, mat.A, sizeA * sizeof(double));
+            // memcpy(IA, mat.IA, sizeIA * sizeof(int));
             
-            // for (int i = 0; i < sizeA; i++)
-            // {
-            //     JA[i] = mat.JA[i];
-            //     A[i] = mat.A[i];
-            // }   
+            for (int i = 0; i < sizeA; i++)
+            {
+                JA[i] = mat.JA[i];
+                A[i] = mat.A[i];
+            }   
 
-            // for (int i = 0; i < sizeIA; i++)
-            //     IA[i] = mat.IA[i];
+            for (int i = 0; i < sizeIA; i++)
+                IA[i] = mat.IA[i];
         }
 
         ~Matrix()
@@ -134,7 +137,7 @@ class Matrix
             sizeA = 0;
         }
 
-        Matrix(const Matrix &mat, int k = 1)
+        Matrix(const Matrix &mat, int k)
         {
             for (int i = 0; i < mat.sizeIA; i++)
                 if (mat.get(i, i) > 0.00001)
@@ -156,7 +159,7 @@ class Matrix
 
                 if (diag > 0.000001)
                 {
-                    A[ia] = 1 / diag;
+                    A[ia] = 1.0 / diag;
                     // A[ia] = diag;
                     JA[ia++] = i;
                     cnt++;
@@ -171,7 +174,7 @@ class Matrix
             for (int k = IA[i]; k < IA[i + 1]; k++)
                 if (j == JA[k])
                     return A[k];
-            return 0;
+            return 0.0;
         }
 
         void printCSR()
@@ -203,7 +206,11 @@ class Matrix
             for (int i = 0; i < sizeIA - 1; i++)
             {
                 for (int j = 0; j < sizeIA - 1; j++)
+                {
+                    // cout.width(6);
+                    // cout.setf(ios::left);
                     cout << get(i, j) << ' ';
+                }
                 cout << endl;
             }
 
@@ -231,7 +238,8 @@ class Vector
             A = new double [s];
 
             for (int i = 0; i < size; i++)
-                A[i] = rand() % 100;
+                // A[i] = rand() % 10;
+                A[i] = sin(i);
         }
 
         Vector(const Vector &vec)
@@ -239,16 +247,16 @@ class Vector
             size = vec.size;
             A = new double [size];
 
-            memcpy(A, vec.A, size * sizeof(double));
+            // memcpy(A, vec.A, size * sizeof(double));
 
-            // for (int i = 0; i < size; i++)
-            //     A[i] = vec.A[i];
+            for (int i = 0; i < size; i++)
+                A[i] = vec.A[i];
         }
 
         Vector(int s, double c)
         {
             size = s;
-            A = new double [s];
+            A = new double [size];
 
             for (int i = 0; i < size; i++)
                 A[i] = c;
@@ -257,12 +265,12 @@ class Vector
         Vector(int s, double *vec)
         {
             size = s;
-            A = new double [s];
+            A = new double [size];
 
-            memcpy(A, vec, size * sizeof(double));
+            // memcpy(A, vec, size * sizeof(double));
 
-            // for (int i = 0; i < size; i++)
-            //     A[i] = vec[i];
+            for (int i = 0; i < size; i++)
+                A[i] = vec[i];
         }
 
         ~Vector()
@@ -279,10 +287,10 @@ class Vector
             size = vec.size;
             A = new double [size];
 
-            memcpy(A, vec.A, size * sizeof(double));
+            // memcpy(A, vec.A, size * sizeof(double));
 
-            // for (int i = 0; i < size; i++)
-            //     A[i] = vec.A[i];
+            for (int i = 0; i < size; i++)
+                A[i] = vec.A[i];
             // (*this).print();
 
             return *this;
@@ -300,7 +308,12 @@ class Vector
         {
             cout << "Vector" << endl;
             for (int i = 0; i < size; i++)
-                cout << A[i] << ' ';
+            {
+                if (A[i] < 0.00001)
+                    cout << 0 << ' ';
+                else
+                    cout << A[i] << ' ';
+            }
             cout << endl;
 
             return;
@@ -311,7 +324,7 @@ class Vector
             if (vec1.size != vec2.size)
                 cout << "Can't dot: different lenghts!" << endl;
 
-            double res = 0;
+            double res = 0.0;
 
             for (int i = 0; i < vec1.size; i++)
                 res += vec1.A[i] * vec2.A[i];
@@ -341,18 +354,29 @@ class Vector
                 return -1;
             }
 
-            // res = 0;
+            // res = 0.0;
+            // for (int i = 0; i < vec.size; i++)
+            // {
+            //     for (int j = 0; j < vec.size; j++)
+            //     {
+            //         cout << res.A[i] << endl;
+            //         res.A[i] += mat.get(i, j) * vec.A[j];
+            //         cout << mat.get(i, j) << ' ' << vec.A[j] << ' ' << res.A[i] << endl;
+            //     }
+            //     return 0;
+            // }
+
             // for (int i = 0; i < vec.size; i++)
             //     for (int j = 0; j < vec.size; j++)
             //         res.A[i] += mat.get(i, j) * vec.A[j];
 
             // res.print();
-            // res = 0;
+            res = 0.0;
 
             // faster
             for (int i = 0; i < mat.sizeIA - 1; i++)
             {
-                res.A[i] = 0;
+                res.A[i] = 0.0;
                 for (int j = mat.IA[i]; j < mat.IA[i + 1]; j++)
                     res.A[i] += mat.A[j] * vec.A[mat.JA[j]];
             }
@@ -366,12 +390,10 @@ class Vector
 
 int solve(int N, Matrix &A, Vector &BB, double tol, int maxit)
 {
-    int nit = 0, I = 0;
+    int I = 0;
     Vector XX(N, 0.0);
     Matrix DD(A, 1);
-    // A.print();
-    // DD.print();
-    // return 0;
+
     Vector PP(N, 0.0), PP2(N, 0.0), RR(N, 0.0), RR2(N, 0.0), TT(N, 0.0), VV(N, 0.0), SS(N, 0.0), SS2(N, 0.0);
     double initres = 0.0, res = 0.0, mineps = 1e-15, eps = 0.0;
     double Rhoi_1 = 1.0, alphai = 1.0, wi = 1.0, betai_1 = 1.0, Rhoi_2 = 1.0, alphai_1 = 1.0, wi_1 = 1.0, RhoMin = 1e-60;
@@ -443,6 +465,19 @@ int solve(int N, Matrix &A, Vector &BB, double tol, int maxit)
 
         res = sqrt(dot(RR, RR));
     }
+    cout << "> Discrepancy = " << res << endl;
+
+    Vector check(N, 0.0);
+
+    SpMV(A, XX, check);
+
+    cout << "> Solution" << endl;
+    XX.print();
+    cout << "> Ax" << endl;
+    check.print();
+    cout << "> BB" << endl;
+    BB.print();
+
     return I;
 }
 
@@ -479,24 +514,64 @@ int main (int argc, char **argv)
 
     if (argc != 6)
     {
-        cout << "Wrong number of in params, check your command" << endl;
-        cout << "<Nx> <Ny> <Nz> <tol> <maxi >" << endl;
+        cout << "> Wrong number of in params, check your command" << endl;
+        cout << "<Nx> <Ny> <Nz> <tol> <maxit>" << endl;
         return -1;
     }
 
     int Nx = atoi(argv[1]), Ny = atoi(argv[2]), Nz = atoi(argv[3]);
     int N = Nx * Ny * Nz, maxit = atoi(argv[5]);
     double tol = atof(argv[4]);
+    // cout << Nx << ' ' << Ny << ' ' << Nz << ' ' << tol << ' ' << maxit << endl;
 
     Matrix A(Nx, Ny, Nz);
     Vector BB(N);
 
-    Vector tmp(N);
-    SpMV(A, BB, tmp);
+    // A.print();
 
-    tmp = BB;
+    // A.print(1);
+
+    // Vector tmp(N, 1.0);
+
+    // BB.print();
+    // tmp.print();
+    // tmp = BB;
+    // tmp.print();
+    // SpMV(A, BB, tmp);
+
+    // double r = 0.0;
+    // for (int i = 0; i < 27; i++)
+    // {
+    //     r = 0.0;
+    //     for (int j = 0; j < 27; j++)
+    //     {
+    //         r += A.get(i, j);
+    //     }
+    //     cout << r << ' ';
+    // }
+    // cout << endl;
+
+    // SpMV(A, tmp, BB);
+
+    // BB.print();
+
+
+    // tmp.print();
+    // axpby(tmp, tmp, 1.0, 1.0);
+    // tmp.print();
+    // cout << dot(tmp, tmp) << endl;
+    // return 0;
+
+    // A.print();
+    // BB.print();
+    // tmp.print();
+
+
+    // RR.print();
+    // BB.print();
+    // check.print();
     
-    cout << solve(N, A, BB, tol, maxit) << endl;
+    cout << "> Numder of iters = " << solve(N, A, BB, tol, maxit) << endl;
 
     return 0;
 }
