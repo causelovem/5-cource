@@ -575,40 +575,64 @@ int testFunc(int Nx, int Ny, int Nz, int N)
         N = Nx * Ny * Nz;
         cout << Nx << ' ' << Ny << ' ' << Nz << ' ' << N << endl;
 
+        long double seqTimeDot = 0.0;
+        long double seqTimeAxpby = 0.0;
+        long double seqTimeSpmv = 0.0;
+
         for (int i = 0; i < 6; i++)
         {
             Vector testVec1(N), testVec2(N);
             Vector testRes(N, 0.0);
             Matrix testMat(Nx, Ny, Nz);
-            // 2 ^ i
+
+            int corner = 4 * 8;
+            int edge = 5 * 4 * ((Nx - 2) + (Ny - 2) + (Nz - 2));
+            int face = 6 * 2 * (((Nx - 2) * (Ny - 2)) + ((Nx - 2) * (Nz - 2)) + ((Ny - 2) * (Nz - 2)));
+            int inner = 7 * (Nx - 2) * (Ny - 2) * (Nz - 2);
+            int sizeA = corner + edge + face + inner;
             // int num = 1 << i;
             int num = thread[i];
 
             omp_set_num_threads(num);
             cout << "> Threads = " << num << endl << endl;
 
-            float testTime = omp_get_wtime();
+            long double operations = 1e-9 * 2 * N;
+            long double testTime = omp_get_wtime();
             cout << "> DOT = " << dot(testVec1, testVec2) << endl;
             testTime = omp_get_wtime() - testTime;
             cout << "> Time of DOT = " << testTime << endl;
-            cout << "> FLOPS = " << N / (testTime * 1E9) << endl << endl;
+            cout << "> GFLOPS = " << operations / testTime << endl;
+            if (i == 0)
+                seqTimeDot = testTime;
+            cout << "> SpeedUp = " << seqTimeDot / testTime << endl;
+            cout << endl;
 
 
+            operations = 1e-9 * 3 * N;
             testTime = omp_get_wtime();
             axpby(testVec1, testVec2, 1.0, 2.0);
             testTime = omp_get_wtime() - testTime;
             cout << "> AXPBY L2 norm = " << sqrt(dot(testVec1, testVec1)) << endl;
             cout << "> Time of AXPBY = " << testTime << endl;
-            cout << "> FLOPS = " << N / (testTime * 1E9) << endl << endl;
+            cout << "> GFLOPS = " << operations / testTime << endl;
+            if (i == 0)
+                seqTimeAxpby = testTime;
+            cout << "> SpeedUp = " << seqTimeAxpby / testTime << endl;
+            cout << endl;
 
 
+            operations = 1e-12 * 2 * N * sizeA;
             testTime = omp_get_wtime();
             SpMV(testMat, testVec2, testVec1);
             testTime = omp_get_wtime() - testTime;
             cout << "> SpMV L2 norm = " << sqrt(dot(testVec1, testVec1)) << endl;
             cout << "> Time of SpMV = " << testTime << endl;
-            cout << "> FLOPS = " << N / (testTime * 1E9) << endl << endl;
-            // not exactly N operations on SpMV, but for test is ok
+            cout << "> TFLOPS = " << operations / testTime << endl;
+            if (i == 0)
+                seqTimeSpmv = testTime;
+            cout << "> SpeedUp = " << seqTimeSpmv / testTime << endl;
+            cout << endl;
+
 
             if ((k == 4) && (i == 5))
             {
@@ -620,9 +644,10 @@ int testFunc(int Nx, int Ny, int Nz, int N)
                 {
                     omp_set_num_threads(thread[j]);
                     cout << "> Number of threads = " << thread[j] << endl;
-                    float time = omp_get_wtime();
-                    cout << "> Numder of iters = " << solve(N, A, BB, 0.000000001, 1000, 0) << endl;
+                    long double time = omp_get_wtime();
+                    int res = solve(N, A, BB, 0.000000001, 1000, 0);
                     time = omp_get_wtime() - time;
+                    cout << "> Numder of iters = " << res << endl;
                     cout << "> Final time of computation = " << time << endl;
                     cout << endl;
                 }
@@ -662,8 +687,9 @@ int main (int argc, char **argv)
     {
         omp_set_num_threads(atoi(argv[6]));
         cout << "> Number of threads = " << atoi(argv[6]) << endl;
-        float time = omp_get_wtime();
-        cout << "> Number of iters = " << solve(N, A, BB, tol, maxit, debug) << endl;
+        long double time = omp_get_wtime();
+        int res = solve(N, A, BB, tol, maxit, debug);
+        cout << "> Number of iters = " << res << endl;
         time = omp_get_wtime() - time;
         cout << "> Final time of computation = " << time << endl;
     }
