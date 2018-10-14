@@ -66,6 +66,7 @@ class Matrix
                         if (i > 0)
                         {
                             A[ia] = s;
+                            // A[ia] = sin(i + j);
                             sum += A[ia++];
                             JA[ija++] = num - 1;
                             cnt++;
@@ -143,7 +144,7 @@ class Matrix
         Matrix(const Matrix &mat, int k)
         {
             for (int i = 0; i < mat.sizeIA - 1; i++)
-                if (mat.get(i, i) > 0.00001)
+                if (mat.get(i, i) > 0.000001)
                     sizeA++;
 
             sizeIA = mat.sizeIA;
@@ -444,6 +445,7 @@ class Vector
 
             res = 0.0;
 
+            // much faster
             #pragma omp parallel for
             for (int i = 0; i < mat.sizeIA - 1; i++)
             {
@@ -457,7 +459,7 @@ class Vector
 };
 
 
-int solve(int N, Matrix &A, Vector &BB, double tol, int maxit)
+int solve(int N, Matrix &A, Vector &BB, double tol, int maxit, int debug)
 {
     int I = 0;
     Vector XX(N, 0.0);
@@ -476,6 +478,9 @@ int solve(int N, Matrix &A, Vector &BB, double tol, int maxit)
 
     for (I = 0; I < maxit; I++)
     {
+        if (debug == 1)
+            cout << "It = " << I << "; res = " << res << "; tol = " << res / initres << endl;
+
         if (res < eps)
             break;
         if (res > initres / mineps)
@@ -534,30 +539,105 @@ int solve(int N, Matrix &A, Vector &BB, double tol, int maxit)
 
         res = sqrt(dot(RR, RR));
     }
-    cout << "> Discrepancy = " << res << endl;
+    cout << "> Final discrepancy = " << res << endl;
 
-    // Vector check(N, 0.0);
+    // if (debug == 1)
+    // {
+    //     Vector check(N, 0.0);
 
-    // SpMV(A, XX, check);
+    //     SpMV(A, XX, check);
 
-    // cout << "> Solution" << endl;
-    // XX.print();
-    // cout << "> Ax" << endl;
-    // check.print();
-    // cout << "> BB" << endl;
-    // BB.print();
+    //     cout << "> Solution" << endl;
+    //     XX.print();
+    //     cout << "> Ax" << endl;
+    //     check.print();
+    //     cout << "> BB" << endl;
+    //     BB.print();
+    // }
 
     return I;
+}
+
+int testFunc(int Nx, int Ny, int Nz, int N)
+{
+    int thread[6] = {1, 2, 4, 8, 10, 16};
+    int xx[5] = {10, 10, 10, 100, 100};
+    int yy[5] = {10, 10, 100, 100, 100};
+    int zz[5] = {10, 100, 100, 100, 1000};
+    for (int k = 0; k < 5; k++)
+    {
+        Nx = xx[k];
+        Ny = yy[k];
+        Nz = zz[k];
+        N = Nx * Ny * Nz;
+        cout << Nx << ' ' << Ny << ' ' << Nz << ' ' << N << endl;
+
+        for (int i = 0; i < 6; i++)
+        {
+            Vector testVec1(N), testVec2(N);
+            Vector testRes(N, 0.0);
+            Matrix testMat(Nx, Ny, Nz);
+            // 2 ^ i
+            // int num = 1 << i;
+            int num = thread[i];
+
+            omp_set_num_threads(num);
+            cout << "> Threads = " << num << endl << endl;
+
+            float testTime = omp_get_wtime();
+            cout << "> DOT = " << dot(testVec1, testVec2) << endl;
+            testTime = omp_get_wtime() - testTime;
+            cout << "> Time of DOT = " << testTime << endl;
+            cout << "> FLOPS = " << N / (testTime * 1E9) << endl << endl;
+
+
+            testTime = omp_get_wtime();
+            axpby(testVec1, testVec2, 1.0, 2.0);
+            testTime = omp_get_wtime() - testTime;
+            cout << "> AXPBY L2 norm = " << sqrt(dot(testVec1, testVec1)) << endl;
+            cout << "> Time of AXPBY = " << testTime << endl;
+            cout << "> FLOPS = " << N / (testTime * 1E9) << endl << endl;
+
+
+            testTime = omp_get_wtime();
+            SpMV(testMat, testVec2, testVec1);
+            testTime = omp_get_wtime() - testTime;
+            cout << "> SpMV L2 norm = " << sqrt(dot(testVec1, testVec1)) << endl;
+            cout << "> Time of SpMV = " << testTime << endl;
+            cout << "> FLOPS = " << N / (testTime * 1E9) << endl << endl;
+            // not exactly N operations on SpMV, but for test is ok
+
+            if ((k == 4) && (i == 5))
+            {
+                Matrix A(Nx, Ny, Nz);
+                Vector BB(N);
+
+                cout << "> Solver test..." << endl << endl;
+                for (int j = 0; j < 6; j++)
+                {
+                    omp_set_num_threads(thread[j]);
+                    cout << "> Number of threads = " << thread[j] << endl;
+                    float time = omp_get_wtime();
+                    cout << "> Numder of iters = " << solve(N, A, BB, 0.000000001, 1000, 0) << endl;
+                    time = omp_get_wtime() - time;
+                    cout << "> Final time of computation = " << time << endl;
+                    cout << endl;
+                }
+            }
+        }
+    }
+
+    return 0;
 }
 
 int main (int argc, char **argv)
 {
     srand(time(0));
 
-    if (argc != 7)
+    if (argc != 8)
     {
         cout << "> Wrong number of in params, check your command" << endl;
-        cout << "<Nx> <Ny> <Nz> <tol> <maxit> <omp>" << endl;
+        cout << "<Nx> <Ny> <Nz> <tol> <maxit> <omp> <debug>" << endl;
         return -1;
     }
 
@@ -566,15 +646,24 @@ int main (int argc, char **argv)
     int Nx = atoi(argv[1]), Ny = atoi(argv[2]), Nz = atoi(argv[3]);
     int N = Nx * Ny * Nz, maxit = atoi(argv[5]);
     double tol = atof(argv[4]);
+    int debug = atoi(argv[7]);
     // cout << Nx << ' ' << Ny << ' ' << Nz << ' ' << tol << ' ' << maxit << endl;
 
     Matrix A(Nx, Ny, Nz);
     Vector BB(N);
- 
-    
-    float time = omp_get_wtime();
-    cout << "> Numder of iters = " << solve(N, A, BB, tol, maxit) << endl;
-    cout << "> Final time of computation = " << (omp_get_wtime() - time) << endl;
+
+
+    if (debug != 0)
+        testFunc(Nx, Ny, Nz, N);
+    else
+    {
+        omp_set_num_threads(atoi(argv[6]));
+        cout << "> Number of threads = " << atoi(argv[6]) << endl;
+        float time = omp_get_wtime();
+        cout << "> Numder of iters = " << solve(N, A, BB, tol, maxit, debug) << endl;
+        time = omp_get_wtime() - time;
+        cout << "> Final time of computation = " << time << endl;
+    }
     // cout << "> Operation time = " << globtime << endl;
 
     return 0;
