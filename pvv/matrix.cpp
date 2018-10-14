@@ -45,29 +45,31 @@ class Matrix
                     {
                         int num = i + Nx * j + Nx * Ny * k;
                         double sum = 0.0;
-                        double s = sin(i + j + 1);
+                        // double s = sin(i + j + 1);
 
                         if (k > 0)
                         {
-                            A[ia] = s;
-                            sum += A[ia++];
+                            // A[ia] = s;
+                            A[ia] = sin(2 * num - Nx * Ny + 1);
+                            sum += fabs(A[ia++]);
                             JA[ija++] = num - Nx * Ny;
                             cnt++;
                         }
 
                         if (j > 0)
                         {
-                            A[ia] = s;
-                            sum += A[ia++];
+                            // A[ia] = s;
+                            A[ia] = sin(2 * num - Nx + 1);
+                            sum += fabs(A[ia++]);
                             JA[ija++] = num - Nx;
                             cnt++;
                         }
 
                         if (i > 0)
                         {
-                            A[ia] = s;
-                            // A[ia] = sin(i + j);
-                            sum += A[ia++];
+                            // A[ia] = s;
+                            A[ia] = sin(2 * num - 1 + 1);
+                            sum += fabs(A[ia++]);
                             JA[ija++] = num - 1;
                             cnt++;
                         }
@@ -76,26 +78,27 @@ class Matrix
 
                         if (i < Nx - 1)
                         {
-                            A[ia] = s;
-                            // A[ia] = sin(i + j + 2);
-                            sum += A[ia++];
+                            // A[ia] = s;
+                            A[ia] = sin(2 * num + 1 + 1);
+                            sum += fabs(A[ia++]);
                             JA[ija++] = num + 1;
                             cnt++;
                         }
 
                         if (j < Ny - 1)
                         {
-                            A[ia] = s;
-                            // A[ia] = sin(i + j + 2);
-                            sum += A[ia++];
+                            // A[ia] = s;
+                            A[ia] = sin(2 * num + Nx + 1);
+                            sum += fabs(A[ia++]);
                             JA[ija++] = num + Nx;
                             cnt++;
                         }
 
                         if (k < Nz - 1)
                         {
-                            A[ia] = s;
-                            sum += A[ia++];
+                            // A[ia] = s;
+                            A[ia] = sin(2 * num + Nx * Ny + 1);
+                            sum += fabs(A[ia++]);
                             JA[ija++] = num + Nx * Ny;
                             cnt++;
                         }
@@ -352,7 +355,7 @@ class Vector
             cout << "Vector" << endl;
             for (int i = 0; i < size; i++)
             {
-                if (A[i] < 0.00001)
+                if (fabs(A[i]) < 0.000001)
                     cout << 0 << ' ';
                 else
                     cout << A[i] << ' ';
@@ -478,7 +481,7 @@ int solve(int N, Matrix &A, Vector &BB, double tol, int maxit, int debug)
 
     for (I = 0; I < maxit; I++)
     {
-        if (debug == 1)
+        if (debug != 0)
             cout << "It = " << I << "; res = " << res << "; tol = " << res / initres << endl;
 
         if (res < eps)
@@ -528,7 +531,7 @@ int solve(int N, Matrix &A, Vector &BB, double tol, int maxit, int debug)
         axpby(XX, PP2, 1.0, alphai);
         axpby(XX, SS2, 1.0, wi);
 
-        RR=SS;
+        RR = SS;
 
         axpby(RR, TT, 1.0, -wi);
 
@@ -541,18 +544,18 @@ int solve(int N, Matrix &A, Vector &BB, double tol, int maxit, int debug)
     }
     cout << "> Final discrepancy = " << res << endl;
 
-    // if (debug == 1)
+    // if (debug != 0)
     // {
-    //     Vector check(N, 0.0);
+        // Vector check(N, 0.0);
 
-    //     SpMV(A, XX, check);
+        // SpMV(A, XX, check);
 
-    //     cout << "> Solution" << endl;
-    //     XX.print();
-    //     cout << "> Ax" << endl;
-    //     check.print();
-    //     cout << "> BB" << endl;
-    //     BB.print();
+        // cout << "> Solution" << endl;
+        // XX.print();
+        // cout << "> Ax" << endl;
+        // check.print();
+        // cout << "> BB" << endl;
+        // BB.print();
     // }
 
     return I;
@@ -660,7 +663,7 @@ int main (int argc, char **argv)
         omp_set_num_threads(atoi(argv[6]));
         cout << "> Number of threads = " << atoi(argv[6]) << endl;
         float time = omp_get_wtime();
-        cout << "> Numder of iters = " << solve(N, A, BB, tol, maxit, debug) << endl;
+        cout << "> Number of iters = " << solve(N, A, BB, tol, maxit, debug) << endl;
         time = omp_get_wtime() - time;
         cout << "> Final time of computation = " << time << endl;
     }
