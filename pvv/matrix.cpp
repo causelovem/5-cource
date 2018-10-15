@@ -645,7 +645,7 @@ int testFunc(int Nx, int Ny, int Nz, int N)
                     omp_set_num_threads(thread[j]);
                     cout << "> Number of threads = " << thread[j] << endl;
                     long double time = omp_get_wtime();
-                    int res = solve(N, A, BB, 0.000000001, 1000, 0);
+                    int res = solve(N, A, BB, 0.000000001, 1000, 1);
                     time = omp_get_wtime() - time;
                     cout << "> Numder of iters = " << res << endl;
                     cout << "> Final time of computation = " << time << endl;
