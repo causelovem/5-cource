@@ -621,13 +621,13 @@ int testFunc(int Nx, int Ny, int Nz, int N)
             cout << endl;
 
 
-            operations = 1e-12 * 2 * N * sizeA;
+            operations = 1e-9 * 2 * N * 7;
             testTime = omp_get_wtime();
             SpMV(testMat, testVec2, testVec1);
             testTime = omp_get_wtime() - testTime;
             cout << "> SpMV L2 norm = " << sqrt(dot(testVec1, testVec1)) << endl;
             cout << "> Time of SpMV = " << testTime << endl;
-            cout << "> TFLOPS = " << operations / testTime << endl;
+            cout << "> GFLOPS = " << operations / testTime << endl;
             if (i == 0)
                 seqTimeSpmv = testTime;
             cout << "> SpeedUp = " << seqTimeSpmv / testTime << endl;
@@ -640,15 +640,22 @@ int testFunc(int Nx, int Ny, int Nz, int N)
                 Vector BB(N);
 
                 cout << "> Solver test..." << endl << endl;
+                long double seqTimeSolve = 0.0;
                 for (int j = 0; j < 6; j++)
                 {
                     omp_set_num_threads(thread[j]);
                     cout << "> Number of threads = " << thread[j] << endl;
+                    // 5 dot 6 axpby 4 spmv N diag
+                    long double operations = 1e-9 * (5 * (2 * N) + 6 * (3 * N) + 4 * (2 * N * 7) + N);
                     long double time = omp_get_wtime();
                     int res = solve(N, A, BB, 0.000000001, 1000, 1);
                     time = omp_get_wtime() - time;
                     cout << "> Numder of iters = " << res << endl;
                     cout << "> Final time of computation = " << time << endl;
+                    cout << "> GFLOPS = " << operations / time << endl;
+                    if (j == 0)
+                        seqTimeSolve = time;
+                    cout << "> SpeedUp = " << seqTimeSolve / time << endl;
                     cout << endl;
                 }
             }
@@ -686,12 +693,15 @@ int main (int argc, char **argv)
     else
     {
         omp_set_num_threads(atoi(argv[6]));
+        // 5 dot 6 axpby 4 spmv N diag
+        long double operations = 1e-9 * (5 * (2 * N) + 6 * (3 * N) + 4 * (2 * N * 7) + N);
         cout << "> Number of threads = " << atoi(argv[6]) << endl;
         long double time = omp_get_wtime();
         int res = solve(N, A, BB, tol, maxit, debug);
-        cout << "> Number of iters = " << res << endl;
         time = omp_get_wtime() - time;
+        cout << "> Number of iters = " << res << endl;
         cout << "> Final time of computation = " << time << endl;
+        cout << "> GFLOPS = " << operations / time << endl;
     }
     // cout << "> Operation time = " << globtime << endl;
 
