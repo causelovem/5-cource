@@ -1,13 +1,16 @@
-globals [rules]
+globals [rules posib]
 patches-own [state]
 
 to make-rules
   let n number
   set rules (list)
+  set posib (list)
   repeat 8
   [
     set rules lput (n mod 2) rules
     set n floor (n / 2)
+
+    set posib lput random-float 1 posib
   ]
 end
 
@@ -50,17 +53,72 @@ to go
 end
 
 to update-patch
- ifelse boundary != "cyclic" and (pxcor = min-pxcor or pxcor = max-pxcor)
-  [set state boundary]
+  ifelse not stah?
   [
-    let a [state] of patch-at -1 1
-    let b [state] of patch-at 0 1
-    let c [state] of patch-at 1 1
+    ifelse boundary != "cyclic" and (pxcor = min-pxcor or pxcor = max-pxcor)
+    [set state boundary]
+    [
+      let a 0
+      let b 0
+      let c 0
+      ifelse not async?
+      [
+        set a [state] of patch-at -1 1
+        set b [state] of patch-at 0 1
+        set c [state] of patch-at 1 1
+      ]
+      [
+        ifelse [state] of patch-at -1 0 != -1
+        [set a [state] of patch-at -1 0]
+        [set a [state] of patch-at -1 1]
 
-    let k 4 * a + 2 * b + c
+        set b [state] of patch-at 0 1
 
-    set state item k rules
+        ifelse [state] of patch-at 1 0 != -1
+        [set c [state] of patch-at 1 0]
+        [set c [state] of patch-at 1 1]
+      ]
+
+      let k 4 * a + 2 * b + c
+
+      set state item k rules
+    ]
   ]
+  [
+    ifelse boundary != "cyclic" and (pxcor = min-pxcor or pxcor = max-pxcor)
+    [set state boundary]
+    [
+      let p random-float 1
+
+      let a 0
+      let b 0
+      let c 0
+      ifelse not async?
+      [
+        set a [state] of patch-at -1 1
+        set b [state] of patch-at 0 1
+        set c [state] of patch-at 1 1
+      ]
+      [
+        ifelse [state] of patch-at -1 0 != -1
+        [set a [state] of patch-at -1 0]
+        [set a [state] of patch-at -1 1]
+
+        set b [state] of patch-at 0 1
+
+        ifelse [state] of patch-at 1 0 != -1
+        [set c [state] of patch-at 1 0]
+        [set c [state] of patch-at 1 1]
+      ]
+
+      let k 4 * a + 2 * b + c
+
+      ifelse p < item k posib
+      [set state 1]
+      [set state 0]
+    ]
+  ]
+
   recolor
 end
 @#$#@#$#@
@@ -97,7 +155,7 @@ INPUTBOX
 199
 88
 number
-30.0
+22.0
 1
 0
 Number
@@ -176,7 +234,29 @@ CHOOSER
 boundary
 boundary
 "cyclic" 0 1
-2
+0
+
+SWITCH
+717
+430
+820
+463
+stah?
+stah?
+1
+1
+-1000
+
+SWITCH
+717
+463
+820
+496
+async?
+async?
+0
+1
+-1000
 
 @#$#@#$#@
 ## WHAT IS IT?
