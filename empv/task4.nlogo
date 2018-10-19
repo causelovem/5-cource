@@ -5,17 +5,64 @@ to make-rules
   let n number
   set rules (list)
   set posib (list)
-  repeat 8
+  ifelse not rank2?
   [
-    set rules lput (n mod 2) rules
-    set n floor (n / 2)
+    ifelse not tripl?
+    [
+      repeat 8
+      [
+        set rules lput (n mod 2) rules
+        set n floor (n / 2)
 
-    set posib lput random-float 1 posib
+        set posib lput random-float 1 posib
+      ]
+    ]
+    [
+      repeat 27
+      [
+        set rules lput (n mod 3) rules
+        set n floor (n / 3)
+
+        set posib lput random-float 1 posib
+      ]
+    ]
   ]
+  [
+    ifelse not tripl?
+    [
+      repeat 32
+      [
+        set rules lput (n mod 2) rules
+        set n floor (n / 2)
+
+        set posib lput random-float 1 posib
+      ]
+    ]
+    [
+      repeat 243
+      [
+        set rules lput (n mod 3) rules
+        set n floor (n / 3)
+
+        set posib lput random-float 1 posib
+      ]
+    ]
+  ]
+  ;set posib (list)
+  ;set posib lput 0.0 posib
+  ;set posib lput 1.0 posib
+  ;set posib lput 0.9 posib
+  ;set posib lput 1.0 posib
+  ;set posib lput 1.0 posib
+  ;set posib lput 0.0 posib
+  ;set posib lput 1.0 posib
+  ;set posib lput 0.0 posib
 end
 
 to setup
   clear-all
+  set number random (2 ^ 32 - 1)
+  ;set number random (3 ^ 27 - 1)
   make-rules
   ask patches [setup-patch]
   reset-ticks
@@ -26,13 +73,18 @@ to setup-patch
   [set state -1]
   [
     ifelse init-state = "single 1"
-      [
-        ifelse pxcor = 0
-        [set state 1]
-        [set state 0]
-      ]
+    [
+      ifelse pxcor = 0
+      [set state 1]
+      [set state 0]
+    ]
+    [
+      ifelse not tripl?
       [set state random 2]
+      [set state random 3]
+    ]
   ]
+
   recolor
 end
 
@@ -43,6 +95,8 @@ to recolor
   [set pcolor color-0]
   if state = 1
   [set pcolor color-1]
+  if state = 2
+  [set pcolor color-2]
 end
 
 to go
@@ -53,65 +107,112 @@ to go
 end
 
 to update-patch
-  ifelse not stah?
+  ifelse boundary != "cyclic" and (pxcor = min-pxcor or pxcor = max-pxcor)
+  [set state boundary]
   [
-    ifelse boundary != "cyclic" and (pxcor = min-pxcor or pxcor = max-pxcor)
-    [set state boundary]
+    let a 0
+    let b 0
+    let c 0
+    let d 0
+    let f 0
+
+    let a1 0
+    let b1 0
+    let c1 0
+    let d1 0
+    let f1 0
+
+    ifelse not async?
     [
-      let a 0
-      let b 0
-      let c 0
-      ifelse not async?
-      [
-        set a [state] of patch-at -1 1
-        set b [state] of patch-at 0 1
-        set c [state] of patch-at 1 1
-      ]
-      [
-        ifelse [state] of patch-at -1 0 != -1
-        [set a [state] of patch-at -1 0]
-        [set a [state] of patch-at -1 1]
+      set a [state] of patch-at -1 1
+      set b [state] of patch-at 0 1
+      set c [state] of patch-at 1 1
 
-        set b [state] of patch-at 0 1
-
-        ifelse [state] of patch-at 1 0 != -1
-        [set c [state] of patch-at 1 0]
-        [set c [state] of patch-at 1 1]
+      if rank2?
+      [
+        set d [state] of patch-at -2 1
+        set f [state] of patch-at 2 1
       ]
 
-      let k 4 * a + 2 * b + c
+      if reverse? and pycor != min-pycor
+      [
+        set a1 [state] of patch-at -1 2
+        set b1 [state] of patch-at 0 2
+        set c1 [state] of patch-at 1 2
 
+        if rank2?
+        [
+          set d1 [state] of patch-at -2 2
+          set f1 [state] of patch-at 2 2
+        ]
+      ]
+    ]
+    [
+      ifelse [state] of patch-at -1 0 != -1
+      [set a [state] of patch-at -1 0]
+      [set a [state] of patch-at -1 1]
+
+      set b [state] of patch-at 0 1
+
+      ifelse [state] of patch-at 1 0 != -1
+      [set c [state] of patch-at 1 0]
+      [set c [state] of patch-at 1 1]
+
+      if rank2?
+      [
+        ifelse [state] of patch-at -2 0 != -1
+        [set d [state] of patch-at -2 0]
+        [set d [state] of patch-at -2 1]
+
+        ifelse [state] of patch-at 2 0 != -1
+        [set f [state] of patch-at 2 0]
+        [set f [state] of patch-at 2 1]
+      ]
+    ]
+
+    let k 0
+    let k1 0
+    ifelse not tripl?
+    [
+      ifelse not rank2?
+      [
+        set k 4 * a + 2 * b + c
+
+        if reverse? and pycor != min-pycor
+        [set k1 4 * a1 + 2 * b1 + c1]
+      ]
+      [
+        set k 16 * d + 8 * a + 4 * b + 2 * c + f
+
+        if reverse? and pycor != min-pycor
+        [set k1 16 * d1 + 8 * a1 + 4 * b1 + 2 * c1 + f1]
+      ]
+    ]
+    [
+      ifelse not rank2?
+      [
+        set k 9 * a + 3 * b + c
+
+        if reverse? and pycor != min-pycor
+        [set k1 9 * a1 + 3 * b1 + c1]
+      ]
+      [
+        set k 81 * d + 27 * a + 9 * b + 3 * c + f
+
+        if reverse? and pycor != min-pycor
+        [set k1 81 * d1 + 27 * a1 + 9 * b1 + 3 * c1 + f1]
+      ]
+    ]
+
+    if reverse? and pycor != min-pycor
+    [set k ((k + k1) mod 2)]
+
+    ifelse not stah?
+    [
       set state item k rules
     ]
-  ]
-  [
-    ifelse boundary != "cyclic" and (pxcor = min-pxcor or pxcor = max-pxcor)
-    [set state boundary]
     [
       let p random-float 1
-
-      let a 0
-      let b 0
-      let c 0
-      ifelse not async?
-      [
-        set a [state] of patch-at -1 1
-        set b [state] of patch-at 0 1
-        set c [state] of patch-at 1 1
-      ]
-      [
-        ifelse [state] of patch-at -1 0 != -1
-        [set a [state] of patch-at -1 0]
-        [set a [state] of patch-at -1 1]
-
-        set b [state] of patch-at 0 1
-
-        ifelse [state] of patch-at 1 0 != -1
-        [set c [state] of patch-at 1 0]
-        [set c [state] of patch-at 1 1]
-      ]
-
-      let k 4 * a + 2 * b + c
 
       ifelse p < item k posib
       [set state 1]
@@ -150,12 +251,12 @@ ticks
 30.0
 
 INPUTBOX
-125
+70
 28
 199
 88
 number
-22.0
+9.97298752E8
 1
 0
 Number
@@ -254,6 +355,50 @@ SWITCH
 496
 async?
 async?
+1
+1
+-1000
+
+SWITCH
+611
+429
+714
+462
+rank2?
+rank2?
+0
+1
+-1000
+
+SWITCH
+611
+464
+714
+497
+tripl?
+tripl?
+1
+1
+-1000
+
+INPUTBOX
+53
+349
+208
+409
+color-2
+25.0
+1
+0
+Color
+
+SWITCH
+556
+543
+660
+576
+reverse?
+reverse?
 0
 1
 -1000
