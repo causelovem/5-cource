@@ -61,9 +61,20 @@ end
 
 to setup
   clear-all
-  set number random (2 ^ 32 - 1)
+  ;set number random (2 ^ 32 - 1)
   ;set number random (3 ^ 27 - 1)
   make-rules
+
+  if initClustVal > 2 * max-pxcor
+  [set initClustVal 2 * max-pxcor]
+  if initClustVal < 0
+  [set initClustVal 0]
+
+  if initVal > 1
+  [set initVal 1]
+  if initVal < 0
+  [set initVal 0]
+
   ask patches [setup-patch]
   reset-ticks
 end
@@ -72,16 +83,56 @@ to setup-patch
   ifelse pycor != max-pycor
   [set state -1]
   [
-    ifelse init-state = "single 1"
+    if init-state = "single 1"
     [
       ifelse pxcor = 0
       [set state 1]
       [set state 0]
     ]
+
+    if init-state = "random"
     [
       ifelse not tripl?
       [set state random 2]
       [set state random 3]
+    ]
+
+    if init-state = "rand01"
+    [
+      ;if not tripl?
+      ;[set state random 2]
+
+      ifelse random-float 1 <= initVal
+      [set state 1]
+      [set state 0]
+    ]
+
+    if init-state = "clust"
+    [
+      ;ifelse not tripl?
+      ;[set state random 2]
+
+      let part initClustVal / 2
+
+      if abs pxcor < part
+      [
+        ifelse random-float 1 <= initVal
+        [set state 1]
+        [set state 0]
+      ]
+    ]
+
+    if init-state = "period"
+    [
+      ;ifelse not tripl?
+      ;[set state random 2]
+
+      if pxcor mod (2 * initClustVal) <= initClustVal - 1
+      [
+        ifelse random-float 1 <= initVal
+        [set state 1]
+        [set state 0]
+      ]
     ]
   ]
 
@@ -214,7 +265,7 @@ to update-patch
     [
       let p random-float 1
 
-      ifelse p < item k posib
+      ifelse p <= item k posib
       [set state 1]
       [set state 0]
     ]
@@ -256,16 +307,16 @@ INPUTBOX
 199
 88
 number
-9.97298752E8
+57.0
 1
 0
 Number
 
 BUTTON
-131
-89
-194
-122
+70
+93
+133
+126
 NIL
 setup
 NIL
@@ -279,10 +330,10 @@ NIL
 1
 
 INPUTBOX
-52
-208
-207
-268
+826
+11
+981
+71
 color-0
 9.9
 1
@@ -290,10 +341,10 @@ color-0
 Color
 
 INPUTBOX
-53
-278
-208
-338
+827
+81
+982
+141
 color-1
 0.0
 1
@@ -307,14 +358,14 @@ CHOOSER
 470
 init-state
 init-state
-"single 1" "random"
+"single 1" "random" "rand01" "clust" "period"
 0
 
 BUTTON
-130
-132
-193
-165
+137
+93
+200
+126
 NIL
 go
 T
@@ -366,7 +417,7 @@ SWITCH
 462
 rank2?
 rank2?
-0
+1
 1
 -1000
 
@@ -382,10 +433,10 @@ tripl?
 -1000
 
 INPUTBOX
-53
-349
-208
-409
+827
+152
+982
+212
 color-2
 25.0
 1
@@ -393,15 +444,37 @@ color-2
 Color
 
 SWITCH
-556
-543
-660
-576
+661
+498
+765
+531
 reverse?
 reverse?
-0
+1
 1
 -1000
+
+INPUTBOX
+208
+472
+275
+532
+initVal
+1.0
+1
+0
+Number
+
+INPUTBOX
+278
+472
+346
+532
+initClustVal
+15.0
+1
+0
+Number
 
 @#$#@#$#@
 ## WHAT IS IT?
