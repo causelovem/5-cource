@@ -167,12 +167,6 @@ to update-patch
     let d 0
     let f 0
 
-    let a1 0
-    let b1 0
-    let c1 0
-    let d1 0
-    let f1 0
-
     ifelse not async?
     [
       set a [state] of patch-at -1 1
@@ -183,19 +177,6 @@ to update-patch
       [
         set d [state] of patch-at -2 1
         set f [state] of patch-at 2 1
-      ]
-
-      if reverse? and pycor != min-pycor
-      [
-        set a1 [state] of patch-at -1 2
-        set b1 [state] of patch-at 0 2
-        set c1 [state] of patch-at 1 2
-
-        if rank2?
-        [
-          set d1 [state] of patch-at -2 2
-          set f1 [state] of patch-at 2 2
-        ]
       ]
     ]
     [
@@ -226,41 +207,26 @@ to update-patch
     ifelse not tripl?
     [
       ifelse not rank2?
-      [
-        set k 4 * a + 2 * b + c
-
-        if reverse? and pycor != min-pycor
-        [set k1 4 * a1 + 2 * b1 + c1]
-      ]
-      [
-        set k 16 * d + 8 * a + 4 * b + 2 * c + f
-
-        if reverse? and pycor != min-pycor
-        [set k1 16 * d1 + 8 * a1 + 4 * b1 + 2 * c1 + f1]
-      ]
+      [set k 4 * a + 2 * b + c]
+      [set k 16 * d + 8 * a + 4 * b + 2 * c + f]
     ]
     [
       ifelse not rank2?
-      [
-        set k 9 * a + 3 * b + c
-
-        if reverse? and pycor != min-pycor
-        [set k1 9 * a1 + 3 * b1 + c1]
-      ]
-      [
-        set k 81 * d + 27 * a + 9 * b + 3 * c + f
-
-        if reverse? and pycor != min-pycor
-        [set k1 81 * d1 + 27 * a1 + 9 * b1 + 3 * c1 + f1]
-      ]
+      [set k 9 * a + 3 * b + c]
+      [set k 81 * d + 27 * a + 9 * b + 3 * c + f]
     ]
 
-    if reverse? and pycor != min-pycor
-    [set k ((k + k1) mod 2)]
+    if reverse? and pycor < max-pycor - 1
+    [
+      set k1 [state] of patch-at pxcor (pycor + 2)
+      set k ((item k rules) + k1) mod 2
+    ]
 
     ifelse not stah?
     [
-      set state item k rules
+      ifelse reverse? and pycor < max-pycor - 1
+      [set state k]
+      [set state item k rules]
     ]
     [
       let p random-float 1
@@ -295,8 +261,8 @@ GRAPHICS-WINDOW
 75
 -50
 50
-0
-0
+1
+1
 1
 ticks
 30.0
@@ -307,7 +273,7 @@ INPUTBOX
 199
 88
 number
-57.0
+90.0
 1
 0
 Number
@@ -450,7 +416,7 @@ SWITCH
 531
 reverse?
 reverse?
-1
+0
 1
 -1000
 
@@ -471,7 +437,7 @@ INPUTBOX
 346
 532
 initClustVal
-15.0
+50.0
 1
 0
 Number
