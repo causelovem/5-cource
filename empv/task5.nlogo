@@ -1,4 +1,4 @@
-patches-own [state old-state l-n cell r1 r2]
+patches-own [state old-state l-n cell r1 r2 flg]
 
 to-report get-state [x]
   ifelse x
@@ -19,9 +19,7 @@ to setup-patch
   ifelse m = 0
   [set state get-state (random? and ((random 100) + 1) <= destiny)]
   [
-    ifelse ((random 100) + 1) <= destiny
-    [set state ((random m) + 1)]
-    [set state 0]
+    set state ((random m) + 1)
   ]
 
   sprout 1 [setup-turtle]
@@ -47,8 +45,7 @@ to recolor
     [set color color-old-1]
   ]
   [
-    if state = 0
-    [set color color-0]
+    set color hsb (floor (state / m * 360)) 100 100
   ]
 end
 
@@ -90,20 +87,22 @@ to go
     ask patches
     [
       set old-state state
-      let flg 0
+      set flg 0
 
       ;if ((any? [state] of neighbors4) + 1) mod m = state - 1
-      ;[set state ((state + 1) mod m) + 1]
 
-      if (([state] of patch (pxcor + 1) (pycor)) mod m) + 1 = state
+      if ([state] of patch (pxcor + 1) (pycor)) = ((state + 1) mod m) + 1
       [set flg 1]
-      if (([state] of patch (pxcor - 1) (pycor)) mod m) + 1 = state
+      if ([state] of patch (pxcor - 1) (pycor)) = ((state + 1) mod m) + 1
       [set flg 1]
-      if (([state] of patch (pxcor) (pycor + 1)) mod m) + 1 = state
+      if ([state] of patch (pxcor) (pycor + 1)) = ((state + 1) mod m) + 1
       [set flg 1]
-      if (([state] of patch (pxcor) (pycor - 1)) mod m) + 1 = state
+      if ([state] of patch (pxcor) (pycor - 1)) = ((state + 1) mod m) + 1
       [set flg 1]
+    ]
 
+    ask patches
+    [
       if flg = 1
       [set state ((state + 1) mod m) + 1]
 
@@ -340,8 +339,8 @@ GRAPHICS-WINDOW
 25
 -25
 25
-0
-0
+1
+1
 1
 ticks
 30.0
@@ -560,7 +559,7 @@ INPUTBOX
 166
 415
 m
-0.0
+15.0
 1
 0
 Number
