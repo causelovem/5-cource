@@ -218,7 +218,7 @@ to update-patch
 
     if reverse? and pycor < max-pycor - 1
     [
-      set k1 [state] of patch-at pxcor (pycor + 2)
+      set k1 [state] of patch pxcor (pycor + 2)
       set k ((item k rules) + k1) mod 2
     ]
 
@@ -273,7 +273,7 @@ INPUTBOX
 199
 88
 number
-90.0
+18.0
 1
 0
 Number
@@ -325,7 +325,7 @@ CHOOSER
 init-state
 init-state
 "single 1" "random" "rand01" "clust" "period"
-0
+1
 
 BUTTON
 137
