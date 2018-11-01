@@ -1,0 +1,8 @@
+add-rule "F" "F[+F]F[-F]" "F"
+set chain "F"
+set d 16
+set delta 25
+set x0 0
+set y0 -14
+set delta-0 0
+set k-shorten 0.5

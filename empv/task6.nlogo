@@ -1,7 +1,7 @@
 breed [chars char]
-chars-own [v alpha cmd]
+chars-own [v alpha cmd my-d]
 
-globals [chain d delta x0 y0 delta-0 k-shorten turtle-1 pos]
+globals [chain d delta x0 y0 delta-0 k-shorten turtle-1 pos d-delta k]
 
 to add-rule [u al cm]
   create-chars 1
@@ -35,6 +35,8 @@ to setup-koch-island
   set y0 8
   set delta-0 90
   set k-shorten 0.25
+  set d-delta 0
+  set k 1
 end
 
 to setup-simple-tree
@@ -46,6 +48,8 @@ to setup-simple-tree
   set y0 -14
   set delta-0 0
   set k-shorten 0.5
+  set d-delta 0
+  set k 1
 end
 
 to setup-hilbert-curve
@@ -59,6 +63,52 @@ to setup-hilbert-curve
   set y0 -12
   set delta-0 90
   set k-shorten 0.5
+  set d-delta 0
+  set k 1
+end
+
+to setup-dragon-curve
+  add-rule "L" "L+R+" "F"
+  add-rule "R" "-L-R" "F"
+  set chain "L"
+  set d 15
+  set delta 90
+  set x0 0
+  set y0 0
+  set delta-0 90
+  set k-shorten 0.7
+  set d-delta 45
+  set k 1
+end
+
+to setup-penrose-mosaic
+  add-rule "W" "YF++ZF−−−−XF[−YF−−−−WF]++" "W"
+  add-rule "X" "+YF−−ZF[−−−WF−−XF]+" "X"
+  add-rule "Y" "−WF++XF[+++YF++ZF]−" "Y"
+  add-rule "Z" "−−YF++++WF[+ZF++++XF]−−XF" "Z"
+  add-rule "F" "" "F"
+  set chain "[X]++[X]++[X]++[X]++[X]"
+  set d 10
+  set delta 36
+  set x0 0
+  set y0 0
+  set delta-0 36
+  set k-shorten 0.7
+  set d-delta 0
+  set k 1
+end
+
+to setup-check-star
+  add-rule "x" "-*Fx" "F"
+  set chain "Fx"
+  set d 30
+  set delta 92
+  set x0 -15
+  set y0 -15
+  set delta-0 0
+  set k-shorten 1
+  set d-delta 0
+  set k 0.965
 end
 
 to setup
@@ -73,6 +123,23 @@ to setup
 
   if l-system = "Hilbert curve"
   [setup-hilbert-curve]
+
+  if l-system = "Dragon curve"
+  [setup-dragon-curve]
+
+  if l-system = "Penrose mosaic"
+  [setup-penrose-mosaic]
+
+  if l-system = "Check star"
+  [setup-check-star]
+
+  if l-system = "File"
+  [
+    file-open "setup.txt"
+    while [not file-at-end?]
+    [run file-read-line]
+    file-close
+  ]
 
   create-chars 1
   [
@@ -92,6 +159,7 @@ to init-turtle
   set size 2
   set pen-size 2
   set heading delta-0
+  set my-d d
 
   set color hsb 0 100 100
 end
@@ -109,6 +177,7 @@ to restart
   update-chain
   set pos 0
   set d d * k-shorten
+  set delta-0 (delta-0 + d-delta)
   ask turtle-1 [init-turtle]
 end
 
@@ -133,13 +202,19 @@ to run-cmd
   let h 360 * pos / (length chain)
   set color hsb h 100 100
   let cm get-cmd item pos chain
-  if cm = "F" [pd fd d pu]
-  if cm = "f" [fd d]
+;  if cm = "F" [pd fd d pu]
+;  if cm = "f" [fd d]
+  if cm = "F" [pd fd my-d pu]
+  if cm = "f" [fd my-d]
   if cm = "+" [lt delta]
   if cm = "-" [rt delta]
   if cm = "[" [hatch 1]
   if cm = "]" [die]
+  if cm = "*" [set my-d my-d * k]
 end
+
+
+
 @#$#@#$#@
 GRAPHICS-WINDOW
 210
@@ -192,8 +267,8 @@ CHOOSER
 223
 l-system
 l-system
-"Koch island" "Simple tree" "Hilbert curve"
-1
+"Koch island" "Simple tree" "Hilbert curve" "Dragon curve" "Penrose mosaic" "Check star" "File"
+5
 
 BUTTON
 75
