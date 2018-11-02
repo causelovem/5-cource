@@ -1,7 +1,7 @@
 breed [chars char]
 chars-own [v alpha cmd my-d]
 
-globals [chain d delta x0 y0 delta-0 k-shorten turtle-1 pos d-delta k]
+globals [chain d delta x0 y0 delta-0 k-shorten turtle-1 pos d-delta k pen-s shp sz]
 
 to add-rule [u al cm]
   create-chars 1
@@ -35,8 +35,6 @@ to setup-koch-island
   set y0 8
   set delta-0 90
   set k-shorten 0.25
-  set d-delta 0
-  set k 1
 end
 
 to setup-simple-tree
@@ -48,8 +46,6 @@ to setup-simple-tree
   set y0 -14
   set delta-0 0
   set k-shorten 0.5
-  set d-delta 0
-  set k 1
 end
 
 to setup-hilbert-curve
@@ -63,8 +59,6 @@ to setup-hilbert-curve
   set y0 -12
   set delta-0 90
   set k-shorten 0.5
-  set d-delta 0
-  set k 1
 end
 
 to setup-dragon-curve
@@ -73,29 +67,26 @@ to setup-dragon-curve
   set chain "L"
   set d 15
   set delta 90
-  set x0 0
+  set x0 -5
   set y0 0
   set delta-0 90
   set k-shorten 0.7
   set d-delta 45
-  set k 1
 end
 
 to setup-penrose-mosaic
-  add-rule "W" "YF++ZF−−−−XF[−YF−−−−WF]++" "W"
-  add-rule "X" "+YF−−ZF[−−−WF−−XF]+" "X"
-  add-rule "Y" "−WF++XF[+++YF++ZF]−" "Y"
-  add-rule "Z" "−−YF++++WF[+ZF++++XF]−−XF" "Z"
+  add-rule "W" "YF++ZF----XF[-YF----WF]++" "W"
+  add-rule "X" "+YF--ZF[---WF--XF]+" "X"
+  add-rule "Y" "-WF++XF[+++YF++ZF]-" "Y"
+  add-rule "Z" "--YF++++WF[+ZF++++XF]--XF" "Z"
   add-rule "F" "" "F"
   set chain "[X]++[X]++[X]++[X]++[X]"
-  set d 10
+  set d 8
   set delta 36
   set x0 0
   set y0 0
   set delta-0 36
   set k-shorten 0.7
-  set d-delta 0
-  set k 1
 end
 
 to setup-check-star
@@ -107,13 +98,44 @@ to setup-check-star
   set y0 -15
   set delta-0 0
   set k-shorten 1
-  set d-delta 0
   set k 0.965
+end
+
+to setup-mandelbrot-tree
+  add-rule "X" "F[-*^X][+*^X]" "F"
+  set chain "X"
+  set d 15
+  set delta 90
+  set x0 0
+  set y0 -15
+  set delta-0 0
+  set k-shorten 1
+  set k 0.65
+  set pen-s 35
+end
+
+to setup-pifagor-tree
+  add-rule "X" "S[f++.*-X][f--.*+X]" "S"
+  set chain "X"
+  set d 4
+  set delta 45
+  set x0 0
+  set y0 -10
+  set k-shorten 1
+  set k 0.70711
+  set sz 4
+  set shp "square"
 end
 
 to setup
   clear-all
   ask patches [set pcolor white]
+
+  set d-delta 0
+  set k 1
+  set shp "turtle"
+  set pen-s 2
+  set sz 2
 
   if l-system = "Koch island"
   [setup-koch-island]
@@ -132,6 +154,12 @@ to setup
 
   if l-system = "Check star"
   [setup-check-star]
+
+  if l-system = "Mandelbrot tree"
+  [setup-mandelbrot-tree]
+
+  if l-system = "Pifagor tree"
+  [setup-pifagor-tree]
 
   if l-system = "File"
   [
@@ -155,9 +183,11 @@ end
 to init-turtle
   set xcor x0
   set ycor y0
-  set shape "turtle"
-  set size 2
-  set pen-size 2
+  set shape shp
+  if l-system = "Pifagor tree"
+  [set hidden? true]
+  set size sz
+  set pen-size pen-s
   set heading delta-0
   set my-d d
 
@@ -202,8 +232,6 @@ to run-cmd
   let h 360 * pos / (length chain)
   set color hsb h 100 100
   let cm get-cmd item pos chain
-;  if cm = "F" [pd fd d pu]
-;  if cm = "f" [fd d]
   if cm = "F" [pd fd my-d pu]
   if cm = "f" [fd my-d]
   if cm = "+" [lt delta]
@@ -211,8 +239,15 @@ to run-cmd
   if cm = "[" [hatch 1]
   if cm = "]" [die]
   if cm = "*" [set my-d my-d * k]
+  if cm = "^" [set pen-size pen-size * 0.75]
+  if cm = "."
+  [fd my-d * 0.5]
+  if cm = "S"
+  [
+    stamp
+    set size size * 0.70711
+  ]
 end
-
 
 
 @#$#@#$#@
@@ -267,8 +302,8 @@ CHOOSER
 223
 l-system
 l-system
-"Koch island" "Simple tree" "Hilbert curve" "Dragon curve" "Penrose mosaic" "Check star" "File"
-5
+"Koch island" "Simple tree" "Hilbert curve" "Dragon curve" "Penrose mosaic" "Check star" "Mandelbrot tree" "Pifagor tree" "File"
+7
 
 BUTTON
 75
@@ -533,9 +568,9 @@ Polygon -7500403 true false 276 85 285 105 302 99 294 83
 Polygon -7500403 true false 219 85 210 105 193 99 201 83
 
 square
-false
+true
 0
-Rectangle -7500403 true true 30 30 270 270
+Rectangle -7500403 true true 0 0 300 315
 
 square 2
 false
