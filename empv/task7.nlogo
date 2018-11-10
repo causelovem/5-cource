@@ -1,10 +1,11 @@
 turtles-own [x f]
 
-globals [n start target]
+globals [n start target ppmut]
 
 to setup
   clear-all
   setup-layout
+  set ppmut pmut
   let d [distance target] of start
   set n floor (1.3 * d)
   create-population
@@ -115,6 +116,7 @@ to go
   [ask turtles [eval -1]]
 
   if [any? turtles-here] of target [stop]
+  set ppmut ppmut * 0.99
   tick
 end
 
@@ -169,7 +171,6 @@ to crossover
     let r2 random (n - r1)
     set r2 r2 + r1
     set t x
-;    set x (list)
     set x sentence (sublist t 0 r1) (sublist [x] of o-t r1 r2)
     set x sentence x (sublist t r2 n)
 
@@ -183,7 +184,7 @@ to crossover
 end
 
 to mutate
-  if random-float 1 < pmut [stop]
+  if random-float 1 < ppmut [stop]
   let t (list)
   let i 0
   repeat n
@@ -200,6 +201,9 @@ to-report best-f
   report min [f] of turtles
 end
 
+to-report pmut-show
+  report ppmut
+end
 
 
 
@@ -415,6 +419,17 @@ crossmethod
 1
 0
 Number
+
+MONITOR
+599
+641
+748
+686
+NIL
+pmut-show
+17
+1
+11
 
 @#$#@#$#@
 ## WHAT IS IT?
