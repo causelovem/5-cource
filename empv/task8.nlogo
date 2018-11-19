@@ -56,6 +56,7 @@ to setup
       set state "forward"
       set color blue
       set ph 0.1
+      setxy random-xcor random-ycor
     ]
   ]
 
@@ -192,7 +193,6 @@ end
 
 
 
-
 @#$#@#$#@
 GRAPHICS-WINDOW
 210
@@ -247,7 +247,7 @@ food-source
 food-source
 0
 500
-191.0
+25.0
 1
 1
 NIL
@@ -337,7 +337,7 @@ SWITCH
 565
 random-angle?
 random-angle?
-1
+0
 1
 -1000
 
@@ -348,7 +348,7 @@ SWITCH
 564
 random-ph?
 random-ph?
-1
+0
 1
 -1000
 
@@ -359,7 +359,7 @@ SWITCH
 605
 nest-forward?
 nest-forward?
-0
+1
 1
 -1000
 
