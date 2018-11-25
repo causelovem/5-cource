@@ -1,13 +1,33 @@
 breed [birds bird]
+breed [predators predator]
+patches-own [obstacle?]
 
 to setup
   clear-all
-  ask patches [set pcolor white]
+  ask patches
+  [
+    set obstacle? False
+    set pcolor white
+  ]
 
   create-birds flock-size
   [
     setxy random-xcor random-ycor
     set size 3
+    set shape "airplane"
+  ]
+
+  ask n-of obs-num patches
+  [
+    set obstacle? True
+    set pcolor black
+  ]
+
+  create-predators pred-num
+  [
+    setxy random-xcor random-ycor
+    set size 5
+    set color black
     set shape "airplane"
   ]
 
@@ -25,6 +45,12 @@ to go
 ;    pd fd velocity * random-normal 1.0 0.1
     fd velocity * random-normal 1.0 0.1
   ]
+
+  ask predators
+  [
+    set heading heading + random 6 - 3
+    fd velocity / 2 * random-normal 1.0 0.1
+  ]
   tick
 end
 
@@ -38,49 +64,75 @@ to update-heading
   [set mates min-n-of 3 other birds [distance myself]]
 
 
-  if any? mates
+  set heading heading + 90
+
+  let obstacles patches in-cone vision 180 with
+  [obstacle? = True]
+  let cnt-l count obstacles
+  set obstacles predators in-cone vision 180
+  set cnt-l cnt-l + count obstacles
+
+  set heading heading - 180
+
+  set obstacles patches in-cone vision 180 with
+  [obstacle? = True]
+  let cnt-r count obstacles
+  set obstacles predators in-cone vision 180
+  set cnt-r cnt-r + count obstacles
+
+  set heading heading + 90
+
+  ifelse cnt-l != 0 or cnt-r != 0
   [
-;    let alpha 0.2 + random-float 0.2
-;    let beta 0.2 + random-float 0.2
-;    let gamma 0.1 + random-float 0.1
-    let h-sep heading
-
-    let dx-new dx
-    let dy-new dy
-
-    if separate?
+    if cnt-r > cnt-l
+    [set heading heading + (random 10 + 2)]
+    if cnt-r < cnt-l
+    [set heading heading - (random 10 + 2)]
+    if cnt-r = cnt-l
+    [set heading heading + (random 24 - 12)]
+  ]
+  [
+    if any? mates
     [
-      let n min-one-of mates [distance myself]
-      if distance n < min-sep
-      [set h-sep 180 + towards n]
+      let h-sep heading
 
-      set dx-new dx + alpha * sin h-sep
-      set dy-new dy + alpha * cos h-sep
+      let dx-new dx
+      let dy-new dy
+
+      if separate?
+      [
+        let n min-one-of mates [distance myself]
+        if distance n < min-sep
+        [set h-sep 180 + towards n]
+
+        set dx-new dx-new + alpha * sin h-sep
+        set dy-new dy-new + alpha * cos h-sep
+      ]
+
+      if align?
+      [
+        let h-align heading
+        let xa sum [dx] of mates
+        let ya sum [dy] of mates
+        set h-align atan xa ya
+
+        set dx-new dx-new + beta * sin h-align
+        set dy-new dy-new + beta * cos h-align
+      ]
+
+      if flock?
+      [
+        let h-flock heading
+        let xf sum [sin (towards myself + 180)] of mates
+        let yf sum [cos (towards myself + 180)] of mates
+        set h-flock atan xf yf
+
+        set dx-new dx-new + gamma * sin h-flock
+        set dy-new dy-new + gamma * cos h-flock
+      ]
+
+      set heading atan dx-new dy-new
     ]
-
-    if align?
-    [
-      let h-align heading
-      let xa sum [dx] of mates
-      let ya sum [dy] of mates
-      set h-align atan xa ya
-
-      set dx-new dx-new + beta * sin h-align
-      set dy-new dy-new + beta * cos h-align
-    ]
-
-    if flock?
-    [
-      let h-flock heading
-      let xf sum [sin (towards myself + 180)] of mates
-      let yf sum [cos (towards myself + 180)] of mates
-      set h-flock atan xf yf
-
-      set dx-new dx-new + gamma * sin h-flock
-      set dy-new dy-new + gamma * cos h-flock
-    ]
-
-    set heading atan dx-new dy-new
   ]
 end
 @#$#@#$#@
@@ -120,7 +172,7 @@ flock-size
 flock-size
 10
 200
-200.0
+100.0
 10
 1
 birds
@@ -239,45 +291,45 @@ flock?
 -1000
 
 SLIDER
-266
-436
-438
-469
+449
+433
+621
+466
 alpha
 alpha
 0.2
 0.4
-0.24565380238151346
+0.39119082948409445
 0.01
 1
 NIL
 HORIZONTAL
 
 SLIDER
-266
-475
-438
-508
+449
+472
+621
+505
 beta
 beta
 0.2
 0.4
-0.3385252388075189
+0.2600311705006482
 0.01
 1
 NIL
 HORIZONTAL
 
 SLIDER
-266
-516
-438
-549
+449
+513
+621
+546
 gamma
 gamma
 0.1
 0.2
-0.11763153282576999
+0.10495174548122961
 0.01
 1
 NIL
@@ -290,7 +342,7 @@ SWITCH
 499
 cone?
 cone?
-1
+0
 1
 -1000
 
@@ -301,9 +353,31 @@ SWITCH
 538
 limit?
 limit?
-1
+0
 1
 -1000
+
+INPUTBOX
+209
+425
+297
+485
+obs-num
+10.0
+1
+0
+Number
+
+INPUTBOX
+210
+491
+300
+551
+pred-num
+10.0
+1
+0
+Number
 
 @#$#@#$#@
 ## WHAT IS IT?
