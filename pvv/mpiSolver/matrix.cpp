@@ -18,14 +18,14 @@ class Matrix
         double *A = NULL;
         int *JA = NULL;
         int *IA = NULL;
-        int *rows = NULL;
+        // int *rows = NULL;
         int sizeIA = 0;
         int sizeA = 0;
 
     public:
         // (startI, startJ, startK, Nxp, Nyp, Nzp)
         // Matrix(int Nx, int Ny, int Nz, int Px, int Py, int Pz)
-        Matrix(int Px, int Py, int Pz, int Nxp, int Nyp, int Nzp, int Nx, int Ny, int Nz)
+        Matrix(int Px, int Py, int Pz, int Nxp, int Nyp, int Nzp, int Nx, int Ny, int Nz, int *rows)
         {
             sizeIA = Nxp * Nyp * Nzp + 1;
 
@@ -40,7 +40,7 @@ class Matrix
             IA = new int [sizeIA];
             JA = new int [sizeA];
             A = new double [sizeA];
-            rows = new int [sizeIA];
+            // rows = new int [sizeIA];
             IA[0] = 0;
 
             int ia = 0, ija = 0, iia = 1;
@@ -149,7 +149,7 @@ class Matrix
             delete [] A;
             delete [] JA;
             delete [] IA;
-            delete [] rows;
+            // delete [] rows;
 
             sizeIA = 0;
             sizeA = 0;
@@ -212,10 +212,10 @@ class Matrix
                 cout << IA[i] << ' ';
             cout << endl;
 
-            cout << "rows" << endl;
-            for (int i = 0; i < sizeIA; i++)
-                cout << rows[i] << ' ';
-            cout << endl;
+            // cout << "rows" << endl;
+            // for (int i = 0; i < sizeIA; i++)
+            //     cout << rows[i] << ' ';
+            // cout << endl;
 
             return;
         }
@@ -611,7 +611,7 @@ int testFunc(int Nx, int Ny, int Nz, int N)
         {
             Vector testVec1(N, 0), testVec2(N, 0);
             Vector testRes(N, 0.0);
-            Matrix testMat(Nx, Ny, Nz, 1, 1, 1, 1, 1, 1);
+            Matrix testMat(Nx, Ny, Nz, 1, 1, 1, 1, 1, 1, NULL);
 
             int corner = 4 * 8;
             int edge = 5 * 4 * ((Nx - 2) + (Ny - 2) + (Nz - 2));
@@ -664,7 +664,7 @@ int testFunc(int Nx, int Ny, int Nz, int N)
 
             if ((k == 4) && (i == 5))
             {
-                Matrix A(Nx, Ny, Nz, 1, 1, 1, 1, 1, 1);
+                Matrix A(Nx, Ny, Nz, 1, 1, 1, 1, 1, 1, NULL);
                 Vector BB(N, 0);
 
                 cout << "> Solver test..." << endl << endl;
@@ -726,9 +726,9 @@ int main (int argc, char **argv)
     }
     // cout << Nx << ' ' << Ny << ' ' << Nz << ' ' << tol << ' ' << maxit << endl;
 
-    int k = myRank / (Px * Py),
-        j = (myRank % (Px * Py)) / Pz,
-        i = myRank - k * (Px * Py) - j * Pz;
+    int kk = myRank / (Px * Py),
+        jj = (myRank % (Px * Py)) / Pz,
+        ii = myRank - kk * (Px * Py) - jj * Pz;
 
     // int dim = Nx * Ny * Nz;
 
@@ -736,9 +736,9 @@ int main (int argc, char **argv)
         Nyp = Ny / Py,
         Nzp = Nz / Pz;
 
-    int startI = i * Nxp,
-        startJ = j * Nyp,
-        startK = k * Nzp;
+    int startI = ii * Nxp,
+        startJ = jj * Nyp,
+        startK = kk * Nzp;
 
     int Np = N / nProc;
 
@@ -751,20 +751,45 @@ int main (int argc, char **argv)
         Np += N % nProc;
     }
 
+    int rowsSize = Nxp * Nyp * Nzp;
 
+
+    rowsSize = 10 * rowsSize;
+
+    int *rows = new int [rowsSize];
     int *global2loc = new int [N];
 
+
+    for (int i = 0; i < rowsSize; i++)
+        rows[i] = -1;
+
+    Matrix A(startI, startJ, startK, Nxp, Nyp, Nzp, Nx, Ny, Nz, rows);
     for (int i = 0; i < N; i++)
         global2loc[i] = -1;
 
+    for (int i = 0; i < rowsSize; i++)
+        if (rows[i] != -1)
+            global2loc[rows[i]] = i;
+
+    // if (myRank == 2)
+    // {
+    //     for (int i = 0; i < rowsSize; i++)
+    //         cout << rows[i] << ' ';
+    //     cout << endl << endl;
+    //     for (int i = 0; i < N; i++)
+    //         cout << global2loc[i] << ' ';
+    //     cout << endl;
+    // }
 
 
 
+
+    delete [] rows;
+    delete [] global2loc;
     MPI_Finalize();
     return 0;
 
 
-    Matrix A(startI, startJ, startK, Nxp, Nyp, Nzp, Nx, Ny, Nz);
     Vector BB(Nxp * Nyp * Nzp, Np);
 
     // if (myRank == 0)
@@ -793,6 +818,9 @@ int main (int argc, char **argv)
         cout << "> GFLOPS = " << operations / time << endl;
     }
     // cout << "> Operation time = " << globtime << endl;
+
+    // delete [] rows;
+    // delete [] global2loc;
 
     MPI_Finalize();
     return 0;
