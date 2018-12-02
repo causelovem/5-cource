@@ -149,6 +149,7 @@ class Matrix
             delete [] A;
             delete [] JA;
             delete [] IA;
+            delete [] rows;
 
             sizeIA = 0;
             sizeA = 0;
@@ -717,6 +718,12 @@ int main (int argc, char **argv)
     double tol = atof(argv[4]);
     int Px = atoi(argv[7]), Py = atoi(argv[8]), Pz = atoi(argv[9]);
     int debug = atoi(argv[10]);
+
+    if (Px * Py * Pz != nProc)
+    {
+        cout << "> Px * Py * Pz != nProc, check your command" << endl;
+        return -1;
+    }
     // cout << Nx << ' ' << Ny << ' ' << Nz << ' ' << tol << ' ' << maxit << endl;
 
     int k = myRank / (Px * Py),
@@ -745,6 +752,18 @@ int main (int argc, char **argv)
     }
 
 
+    int *global2loc = new int [N];
+
+    for (int i = 0; i < N; i++)
+        global2loc[i] = -1;
+
+
+
+
+    MPI_Finalize();
+    return 0;
+
+
     Matrix A(startI, startJ, startK, Nxp, Nyp, Nzp, Nx, Ny, Nz);
     Vector BB(Nxp * Nyp * Nzp, Np);
 
@@ -757,8 +776,6 @@ int main (int argc, char **argv)
 
 
 
-    MPI_Finalize();
-    return 0;
 
     if (debug != 0)
         testFunc(Nx, Ny, Nz, N);
