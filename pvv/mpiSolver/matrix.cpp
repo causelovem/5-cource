@@ -242,6 +242,15 @@ class Matrix
         }
 
         friend int SpMV(const Matrix &mat, const Vector &vec, Vector &res);
+
+        friend int makeHalo(const Matrix &mat, int * &halo, int * &sHalo)
+        {
+            halo = new int [sizeA];
+            sHalo = new int [sizeA];
+
+
+            return 0;
+        }
 };
 
 class Vector
@@ -727,41 +736,76 @@ int main (int argc, char **argv)
     // cout << Nx << ' ' << Ny << ' ' << Nz << ' ' << tol << ' ' << maxit << endl;
 
     int kk = myRank / (Px * Py),
-        jj = (myRank % (Px * Py)) / Pz,
-        ii = myRank - kk * (Px * Py) - jj * Pz;
+        jj = (myRank % (Px * Py)) / Px,
+        ii = myRank - kk * (Px * Py) - jj * Px;
 
-    // int dim = Nx * Ny * Nz;
+    // int Nxp = Nx / Px,
+    //     Nyp = Ny / Py,
+    //     Nzp = Nz / Pz;
 
-    int Nxp = Nx / Px,
-        Nyp = Ny / Py,
-        Nzp = Nz / Pz;
+    int Nxp = int(ceil(double(Nx) / double(Px))),
+        Nyp = int(ceil(double(Ny) / double(Py))),
+        Nzp = int(ceil(double(Nz) / double(Pz)));
 
     int startI = ii * Nxp,
         startJ = jj * Nyp,
         startK = kk * Nzp;
 
-    int Np = N / nProc;
+    int Np = myRank * int(ceil(double(N) / double(nProc)));
 
     if (myRank == nProc - 1)
     {
-        Nxp += Nx % Px;
-        Nyp += Ny % Py;
-        Nzp += Nz % Pz;
+        // Nxp = Nx % Px;
+        // Nyp = Ny % Py;
+        // Nzp = Nz % Pz;
+
+        Nxp = Nx - ii * Nxp;
+        Nyp = Ny - jj * Nyp;
+        Nzp = Nz - kk * Nzp;
 
         Np += N % nProc;
     }
 
     int rowsSize = Nxp * Nyp * Nzp;
 
-
-    rowsSize = 10 * rowsSize;
-
     int *rows = new int [rowsSize];
     int *global2loc = new int [N];
+    int *part = new int [N];
+
+    int *halo = NULL, *sHalo = NULL;
 
 
     for (int i = 0; i < rowsSize; i++)
         rows[i] = -1;
+
+
+    for (int i = 0; i < nProc; i++)
+    {
+        int kk = i / (Px * Py),
+            jj = (i % (Px * Py)) / Px,
+            ii = i - kk * (Px * Py) - jj * Px;
+
+        int Nxp = int(ceil(double(Nx) / double(Px))),
+            Nyp = int(ceil(double(Ny) / double(Py))),
+            Nzp = int(ceil(double(Nz) / double(Pz)));
+
+        int startI = ii * Nxp,
+            startJ = jj * Nyp,
+            startK = kk * Nzp;
+
+        if (i == nProc - 1)
+        {
+            Nxp = Nx - ii * Nxp;
+            Nyp = Ny - jj * Nyp;
+            Nzp = Nz - kk * Nzp;
+        }
+
+        for (int k = startK; k < Nxp; k++)
+            for (int j = startJ; j < Nyp; j++)
+                for (int l = startI; l < Nzp; l++)
+                    part[l + Nx * j + Nx * Ny * k] = i
+    }
+
 
     Matrix A(startI, startJ, startK, Nxp, Nyp, Nzp, Nx, Ny, Nz, rows);
     for (int i = 0; i < N; i++)
@@ -771,21 +815,28 @@ int main (int argc, char **argv)
         if (rows[i] != -1)
             global2loc[rows[i]] = i;
 
-    // if (myRank == 2)
-    // {
-    //     for (int i = 0; i < rowsSize; i++)
-    //         cout << rows[i] << ' ';
-    //     cout << endl << endl;
-    //     for (int i = 0; i < N; i++)
-    //         cout << global2loc[i] << ' ';
-    //     cout << endl;
-    // }
+    // makeHalo(A, halo, sHalo);
+
+    if (myRank == 0)
+    {
+        for (int i = 0; i < rowsSize; i++)
+            cout << rows[i] << ' ';
+        cout << endl << endl;
+        for (int i = 0; i < N; i++)
+            cout << global2loc[i] << ' ';
+        cout << endl << endl;
+        for (int i = 0; i < N; i++)
+            cout << part[i] << ' ';
+        cout << endl;
+    }
 
 
 
 
     delete [] rows;
     delete [] global2loc;
+    delete [] halo;
+    delete [] sHalo;
     MPI_Finalize();
     return 0;
 
@@ -821,6 +872,8 @@ int main (int argc, char **argv)
 
     // delete [] rows;
     // delete [] global2loc;
+    // delete [] halo;
+    // delete [] sHalo;
 
     MPI_Finalize();
     return 0;
