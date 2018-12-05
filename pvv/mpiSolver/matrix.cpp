@@ -243,11 +243,21 @@ class Matrix
 
         friend int SpMV(const Matrix &mat, const Vector &vec, Vector &res);
 
-        friend int makeHalo(const Matrix &mat, int * &halo, int * &sHalo)
+        friend int makeHalo(const Matrix &mat, int *global2loc, int *part, int * &halo, int * &sHalo)
         {
-            halo = new int [sizeA];
-            sHalo = new int [sizeA];
+            halo = new int [mat.sizeA];
+            sHalo = new int [mat.sizeA];
 
+            int ih = 0, ish = 0;
+            int toshFlg = 0;
+
+            for (int i = 0; i < mat.sizeIA; i++)
+            {
+                toshFlg = 0;
+                for (int k = mat.IA[i]; k < mat.IA[i + 1]; k++)
+                    if (global2loc[mat.JA[k]] ==  -1)
+                        halo[ih++] = part[mat.JA[k]];
+            }
 
             return 0;
         }
@@ -753,18 +763,12 @@ int main (int argc, char **argv)
 
     int Np = myRank * int(ceil(double(N) / double(nProc)));
 
-    if (myRank == nProc - 1)
-    {
-        // Nxp = Nx % Px;
-        // Nyp = Ny % Py;
-        // Nzp = Nz % Pz;
-
+    if (ii == Px - 1)
         Nxp = Nx - ii * Nxp;
+    if (jj == Py - 1)
         Nyp = Ny - jj * Nyp;
+    if (kk == Pz - 1)
         Nzp = Nz - kk * Nzp;
-
-        Np += N % nProc;
-    }
 
     int rowsSize = Nxp * Nyp * Nzp;
 
@@ -793,17 +797,21 @@ int main (int argc, char **argv)
             startJ = jj * Nyp,
             startK = kk * Nzp;
 
-        if (i == nProc - 1)
-        {
+        if (ii == Px - 1)
             Nxp = Nx - ii * Nxp;
+        if (jj == Py - 1)
             Nyp = Ny - jj * Nyp;
+        if (kk == Pz - 1)
             Nzp = Nz - kk * Nzp;
-        }
 
-        for (int k = startK; k < Nxp; k++)
-            for (int j = startJ; j < Nyp; j++)
-                for (int l = startI; l < Nzp; l++)
-                    part[l + Nx * j + Nx * Ny * k] = i
+        int Ppx = Nxp + startI,
+            Ppy = Nyp + startJ,
+            Ppz = Nzp + startK;
+
+        for (int k = startK; k < Ppz; k++)
+            for (int j = startJ; j < Ppy; j++)
+                for (int l = startI; l < Ppx; l++)
+                    part[l + Nx * j + Nx * Ny * k] = i;
     }
 
 
@@ -815,7 +823,7 @@ int main (int argc, char **argv)
         if (rows[i] != -1)
             global2loc[rows[i]] = i;
 
-    // makeHalo(A, halo, sHalo);
+    makeHalo(A, global2loc, part, halo, sHalo);
 
     if (myRank == 0)
     {
