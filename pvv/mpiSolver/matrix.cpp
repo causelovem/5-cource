@@ -243,20 +243,37 @@ class Matrix
 
         friend int SpMV(const Matrix &mat, const Vector &vec, Vector &res);
 
-        friend int makeHalo(const Matrix &mat, int *global2loc, int *part, int * &halo, int * &sHalo)
+        friend int makeHalo(const Matrix &mat, int *global2loc, int *part, int ** &halo, int ** &sHalo, int nProc)
         {
-            halo = new int [mat.sizeA];
-            sHalo = new int [mat.sizeA];
+            halo = new int* [nProc];
+            sHalo = new int* [nProc];
+
+            for (int i = 0; i < nProc; i++)
+            {
+                halo[i] = new int [7];
+                sHalo[i] = new int [7];
+
+                for (int j = 0; j < 7; j++)
+                {
+                    halo[i][j] = -1;
+                    sHalo[i][j] = -1;
+                }
+            }
 
             int ih = 0, ish = 0;
             int toshFlg = 0;
 
-            for (int i = 0; i < mat.sizeIA; i++)
+            for (int i = 0; i < mat.sizeIA - 1; i++)
             {
                 toshFlg = 0;
                 for (int k = mat.IA[i]; k < mat.IA[i + 1]; k++)
                     if (global2loc[mat.JA[k]] ==  -1)
-                        halo[ih++] = part[mat.JA[k]];
+                        for (int j = 0; j < 7; j++)
+                            if (halo[part[mat.JA[k]]][j] == -1)
+                            {
+                                halo[part[mat.JA[k]]][j] = mat.JA[k];
+                                break;
+                            }
             }
 
             return 0;
@@ -776,7 +793,7 @@ int main (int argc, char **argv)
     int *global2loc = new int [N];
     int *part = new int [N];
 
-    int *halo = NULL, *sHalo = NULL;
+    int **halo = NULL, **sHalo = NULL;
 
 
     for (int i = 0; i < rowsSize; i++)
@@ -823,7 +840,7 @@ int main (int argc, char **argv)
         if (rows[i] != -1)
             global2loc[rows[i]] = i;
 
-    makeHalo(A, global2loc, part, halo, sHalo);
+    makeHalo(A, global2loc, part, halo, sHalo, nProc);
 
     if (myRank == 0)
     {
@@ -836,13 +853,29 @@ int main (int argc, char **argv)
         for (int i = 0; i < N; i++)
             cout << part[i] << ' ';
         cout << endl;
-    }
 
+        A.printCSR();
+
+        for (int i = 0; i < nProc; i++)
+        {
+            cout << i << "    ";
+            for (int j = 0; j < 7; j++)
+                if (halo[i][j] != -1)
+                    cout << halo[i][j] << ' ';
+            cout << endl;
+        }
+    }
 
 
 
     delete [] rows;
     delete [] global2loc;
+
+    for (int i = 0; i < nProc; i++)
+    {
+        delete [] halo[i];
+        delete [] sHalo[i];
+    }
     delete [] halo;
     delete [] sHalo;
     MPI_Finalize();
@@ -861,21 +894,21 @@ int main (int argc, char **argv)
 
 
 
-    if (debug != 0)
-        testFunc(Nx, Ny, Nz, N);
-    else
-    {
-        omp_set_num_threads(atoi(argv[6]));
-        // 5 dot 6 axpby 4 spmv N diag
-        long double operations = 1e-9 * (5 * (2 * N) + 6 * (3 * N) + 4 * (2 * N * 7) + N);
-        cout << "> Number of threads = " << atoi(argv[6]) << endl;
-        long double time = omp_get_wtime();
-        int res = solve(N, A, BB, tol, maxit, debug);
-        time = omp_get_wtime() - time;
-        cout << "> Number of iters = " << res << endl;
-        cout << "> Final time of computation = " << time << endl;
-        cout << "> GFLOPS = " << operations / time << endl;
-    }
+    // if (debug != 0)
+    //     testFunc(Nx, Ny, Nz, N);
+    // else
+    // {
+    //     omp_set_num_threads(atoi(argv[6]));
+    //     // 5 dot 6 axpby 4 spmv N diag
+    //     long double operations = 1e-9 * (5 * (2 * N) + 6 * (3 * N) + 4 * (2 * N * 7) + N);
+    //     cout << "> Number of threads = " << atoi(argv[6]) << endl;
+    //     long double time = omp_get_wtime();
+    //     int res = solve(N, A, BB, tol, maxit, debug);
+    //     time = omp_get_wtime() - time;
+    //     cout << "> Number of iters = " << res << endl;
+    //     cout << "> Final time of computation = " << time << endl;
+    //     cout << "> GFLOPS = " << operations / time << endl;
+    // }
     // cout << "> Operation time = " << globtime << endl;
 
     // delete [] rows;
