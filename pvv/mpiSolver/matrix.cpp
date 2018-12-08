@@ -18,7 +18,6 @@ class Matrix
         double *A = NULL;
         int *JA = NULL;
         int *IA = NULL;
-        // int *rows = NULL;
         int sizeIA = 0;
         int sizeA = 0;
 
@@ -40,7 +39,6 @@ class Matrix
             IA = new int [sizeIA];
             JA = new int [sizeA];
             A = new double [sizeA];
-            // rows = new int [sizeIA];
             IA[0] = 0;
 
             int ia = 0, ija = 0, iia = 1;
@@ -149,7 +147,6 @@ class Matrix
             delete [] A;
             delete [] JA;
             delete [] IA;
-            // delete [] rows;
 
             sizeIA = 0;
             sizeA = 0;
@@ -727,6 +724,7 @@ int main (int argc, char **argv)
     {
         cout << "> Wrong number of in params, check your command" << endl;
         cout << "<Nx> <Ny> <Nz> <tol> <maxit> <omp> <Px> <Py> <Pz> <debug>" << endl;
+        MPI_Finalize();
         return -1;
     }
 
@@ -748,6 +746,7 @@ int main (int argc, char **argv)
     if (Px * Py * Pz != nProc)
     {
         cout << "> Px * Py * Pz != nProc, check your command" << endl;
+        MPI_Finalize();
         return -1;
     }
     // cout << Nx << ' ' << Ny << ' ' << Nz << ' ' << tol << ' ' << maxit << endl;
