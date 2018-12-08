@@ -243,37 +243,27 @@ class Matrix
 
         friend int SpMV(const Matrix &mat, const Vector &vec, Vector &res);
 
-        friend int makeHalo(const Matrix &mat, int *global2loc, int *part, int ** &halo, int ** &sHalo, int nProc)
+        friend int makeHalo(const Matrix &mat, int *global2loc, int *part, int *rows, int ** &halo, int ** &sHalo, int haloSize)
         {
-            halo = new int* [nProc];
-            sHalo = new int* [nProc];
-
-            for (int i = 0; i < nProc; i++)
-            {
-                halo[i] = new int [7];
-                sHalo[i] = new int [7];
-
-                for (int j = 0; j < 7; j++)
-                {
-                    halo[i][j] = -1;
-                    sHalo[i][j] = -1;
-                }
-            }
-
-            int ih = 0, ish = 0;
-            int toshFlg = 0;
-
             for (int i = 0; i < mat.sizeIA - 1; i++)
             {
-                toshFlg = 0;
                 for (int k = mat.IA[i]; k < mat.IA[i + 1]; k++)
                     if (global2loc[mat.JA[k]] ==  -1)
-                        for (int j = 0; j < 7; j++)
+                    {
+                        for (int j = 0; j < haloSize; j++)
                             if (halo[part[mat.JA[k]]][j] == -1)
                             {
                                 halo[part[mat.JA[k]]][j] = mat.JA[k];
                                 break;
                             }
+
+                        for (int j = 0; j < haloSize; j++)
+                            if (sHalo[part[mat.JA[k]]][j] == -1)
+                            {
+                                sHalo[part[mat.JA[k]]][j] = rows[i];
+                                break;
+                            }
+                    }
             }
 
             return 0;
@@ -762,13 +752,10 @@ int main (int argc, char **argv)
     }
     // cout << Nx << ' ' << Ny << ' ' << Nz << ' ' << tol << ' ' << maxit << endl;
 
+    // sizes count
     int kk = myRank / (Px * Py),
         jj = (myRank % (Px * Py)) / Px,
         ii = myRank - kk * (Px * Py) - jj * Px;
-
-    // int Nxp = Nx / Px,
-    //     Nyp = Ny / Py,
-    //     Nzp = Nz / Pz;
 
     int Nxp = int(ceil(double(Nx) / double(Px))),
         Nyp = int(ceil(double(Ny) / double(Py))),
@@ -799,7 +786,7 @@ int main (int argc, char **argv)
     for (int i = 0; i < rowsSize; i++)
         rows[i] = -1;
 
-
+    // part
     for (int i = 0; i < nProc; i++)
     {
         int kk = i / (Px * Py),
@@ -833,38 +820,136 @@ int main (int argc, char **argv)
 
 
     Matrix A(startI, startJ, startK, Nxp, Nyp, Nzp, Nx, Ny, Nz, rows);
+
+    // g2l
     for (int i = 0; i < N; i++)
         global2loc[i] = -1;
-
     for (int i = 0; i < rowsSize; i++)
         if (rows[i] != -1)
             global2loc[rows[i]] = i;
 
-    makeHalo(A, global2loc, part, halo, sHalo, nProc);
+    halo = new int* [nProc];
+    sHalo = new int* [nProc];
 
-    if (myRank == 0)
+    // halo shalo
+    int haloSize = 2 * (Nxp * Nyp + Nxp * Nzp + Nyp * Nzp);
+    for (int i = 0; i < nProc; i++)
     {
-        for (int i = 0; i < rowsSize; i++)
-            cout << rows[i] << ' ';
-        cout << endl << endl;
-        for (int i = 0; i < N; i++)
-            cout << global2loc[i] << ' ';
-        cout << endl << endl;
-        for (int i = 0; i < N; i++)
-            cout << part[i] << ' ';
-        cout << endl;
+        halo[i] = new int [haloSize];
+        sHalo[i] = new int [haloSize];
 
-        A.printCSR();
-
-        for (int i = 0; i < nProc; i++)
+        for (int j = 0; j < haloSize; j++)
         {
-            cout << i << "    ";
-            for (int j = 0; j < 7; j++)
-                if (halo[i][j] != -1)
-                    cout << halo[i][j] << ' ';
-            cout << endl;
+            halo[i][j] = -1;
+            sHalo[i][j] = -1;
         }
     }
+    makeHalo(A, global2loc, part, rows, halo, sHalo, haloSize);
+
+
+    // print
+    if (myRank == 0)
+    {
+        // cout << "ROWS" << endl;
+        // for (int i = 0; i < rowsSize; i++)
+        //     cout << rows[i] << ' ';
+        // cout << endl << endl;
+        // cout << "G2L" << endl;
+        // for (int i = 0; i < N; i++)
+        //     cout << global2loc[i] << ' ';
+        // cout << endl << endl;
+        // cout << "PART" << endl;
+        // for (int i = 0; i < N; i++)
+        //     cout << part[i] << ' ';
+        // cout << endl;
+
+        // A.printCSR();
+
+        cout << "HALO" << endl;
+        for (int i = 0; i < nProc; i++)
+        {
+            for (int j = 0; j < haloSize; j++)
+                if (halo[i][j] != -1)
+                {
+                    cout << i << "    ";
+                    for (int j = 0; j < haloSize; j++)
+                         if (halo[i][j] != -1)
+                            cout << halo[i][j] << ' ';
+                    cout << endl;
+                    break;
+                }
+        }
+
+        cout << "SHALO" << endl;
+        for (int i = 0; i < nProc; i++)
+        {
+            for (int j = 0; j < haloSize; j++)
+                if (sHalo[i][j] != -1)
+                {
+                    cout << i << "    ";
+                    for (int j = 0; j < haloSize; j++)
+                         if (halo[i][j] != -1)
+                            cout << sHalo[i][j] << ' ';
+                    cout << endl;
+                    break;
+                }
+        }
+
+        // cout << haloSize << endl;
+    }
+
+    // MPI_Barrier(MPI_COMM_WORLD);
+
+    // if (myRank == 14)
+    // {
+    //     // cout << "ROWS" << endl;
+    //     // for (int i = 0; i < rowsSize; i++)
+    //     //     cout << rows[i] << ' ';
+    //     // cout << endl << endl;
+    //     // cout << "G2L" << endl;
+    //     // for (int i = 0; i < N; i++)
+    //     //     cout << global2loc[i] << ' ';
+    //     // cout << endl << endl;
+    //     // cout << "PART" << endl;
+    //     // for (int i = 0; i < N; i++)
+    //     //     cout << part[i] << ' ';
+    //     // cout << endl;
+
+    //     // A.printCSR();
+
+    //     cout << "HALO" << endl;
+    //     for (int i = 0; i < nProc; i++)
+    //     {
+    //         for (int j = 0; j < haloSize; j++)
+    //             if (halo[i][j] != -1)
+    //             {
+    //                 cout << i << "    ";
+    //                 for (int j = 0; j < haloSize; j++)
+    //                      if (halo[i][j] != -1)
+    //                         cout << halo[i][j] << ' ';
+    //                 cout << endl;
+    //                 break;
+    //             }
+    //     }
+
+    //     cout << "SHALO" << endl;
+    //     for (int i = 0; i < nProc; i++)
+    //     {
+    //         for (int j = 0; j < haloSize; j++)
+    //             if (sHalo[i][j] != -1)
+    //             {
+    //                 cout << i << "    ";
+    //                 for (int j = 0; j < haloSize; j++)
+    //                      if (halo[i][j] != -1)
+    //                         cout << sHalo[i][j] << ' ';
+    //                 cout << endl;
+    //                 break;
+    //             }
+    //     }
+
+    //     // cout << haloSize << endl;
+    // }
+
 
 
 
