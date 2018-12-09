@@ -22,8 +22,6 @@ class Matrix
         int sizeA = 0;
 
     public:
-        // (startI, startJ, startK, Nxp, Nyp, Nzp)
-        // Matrix(int Nx, int Ny, int Nz, int Px, int Py, int Pz)
         Matrix(int Px, int Py, int Pz, int Nxp, int Nyp, int Nzp, int Nx, int Ny, int Nz, int *rows)
         {
             sizeIA = Nxp * Nyp * Nzp + 1;
@@ -209,11 +207,6 @@ class Matrix
                 cout << IA[i] << ' ';
             cout << endl;
 
-            // cout << "rows" << endl;
-            // for (int i = 0; i < sizeIA; i++)
-            //     cout << rows[i] << ' ';
-            // cout << endl;
-
             return;
         }
 
@@ -240,7 +233,7 @@ class Matrix
 
         friend int SpMV(const Matrix &mat, const Vector &vec, Vector &res);
 
-        friend int makeHalo(const Matrix &mat, int *global2loc, int *part, int *rows, int ** &halo, int ** &sHalo, int haloSize)
+        friend void makeHalo(const Matrix &mat, int *global2loc, int *part, int *rows, int ** &halo, int ** &sHalo, int haloSize)
         {
             for (int i = 0; i < mat.sizeIA - 1; i++)
             {
@@ -263,7 +256,14 @@ class Matrix
                     }
             }
 
-            return 0;
+            return;
+        }
+
+        friend void changeJA(Matrix &mat, int *global2loc)
+        {
+            for (int i = 0; i < mat.sizeA; i++)
+                mat.JA[i] = global2loc[mat.JA[i]];
+            return;
         }
 };
 
@@ -272,61 +272,53 @@ class Vector
     private:
         double *A = NULL;
         int size = 0;
+        int locSize = 0;
     public:
-        // Vector(int s)
-        // {
-        //     size = s;
-        //     A = new double [s];
-
-        //     #pragma omp parallel for
-        //     for (int i = 0; i < size; i++)
-        //         A[i] = sin(i);
-        //         // A[i] = rand() % 10;
-        // }
-
-        Vector(int s, int start)
+        Vector(int s)
         {
             size = s;
-            A = new double [size];
+            locSize = s;
+            A = new double [s];
 
             #pragma omp parallel for
             for (int i = 0; i < size; i++)
-                A[i] = sin(start + i);
+                A[i] = sin(i);
                 // A[i] = rand() % 10;
+        }
+
+        Vector(int selfSize, int haloSize, int *rows)
+        {
+            size = selfSize;
+            locSize = selfSize + haloSize;
+            A = new double [locSize];
+
+            #pragma omp parallel for
+            for (int i = 0; i < selfSize; i++)
+                A[i] = sin(rows[i]);
         }
 
         Vector(const Vector &vec)
         {
             size = vec.size;
-            A = new double [size];
+            locSize = vec.locSize;
+            A = new double [locSize];
 
             // memcpy(A, vec.A, size * sizeof(double));
 
             #pragma omp parallel for
-            for (int i = 0; i < size; i++)
+            for (int i = 0; i < locSize; i++)
                 A[i] = vec.A[i];
         }
 
-        Vector(int s, double c)
+        Vector(int selfSize, int haloSize, double c)
         {
-            size = s;
-            A = new double [size];
+            size = selfSize;
+            locSize = selfSize + haloSize;
+            A = new double [locSize];
 
             #pragma omp parallel for
             for (int i = 0; i < size; i++)
                 A[i] = c;
-        }
-
-        Vector(int s, double *vec)
-        {
-            size = s;
-            A = new double [size];
-
-            // memcpy(A, vec, size * sizeof(double));
-
-            #pragma omp parallel for
-            for (int i = 0; i < size; i++)
-                A[i] = vec[i];
         }
 
         ~Vector()
@@ -341,9 +333,10 @@ class Vector
                 delete [] A;
 
             size = vec.size;
-            A = new double [size];
+            locSize = vec.locSize;
+            A = new double [locSize];
 
-            const int ss = (size / 4) * 4;
+            const int ss = (locSize / 4) * 4;
             // float time = omp_get_wtime();
 
             // memcpy(A, vec.A, size * sizeof(double));
@@ -357,13 +350,8 @@ class Vector
                 A[i + 3] = vec.A[i + 3];
             }
 
-            // #pragma omp parallel for
-            for (int i = ss; i < size; i++)
+            for (int i = ss; i < locSize; i++)
                 A[i] = vec.A[i];
-
-            // #pragma omp parallel for
-            // for (int i = 0; i < size; i++)
-            //     A[i] = vec.A[i];
 
             // time = omp_get_wtime() - time;
             // globtime += time;
@@ -389,10 +377,6 @@ class Vector
             // #pragma omp parallel for
             for (int i = ss; i < size; i++)
                 A[i] = c;
-
-            // #pragma omp parallel for
-            // for (int i = 0; i < size; i++)
-            //     A[i] = c;
 
             // time = omp_get_wtime() - time;
             // globtime += time;
@@ -435,13 +419,10 @@ class Vector
                 res += vec1.A[i + 3] * vec2.A[i + 3];
             }
 
-            // #pragma omp parallel for reduction(+:res)
             for (int i = ss; i < vec1.size; i++)
                 res += vec1.A[i] * vec2.A[i];
 
-            // #pragma omp parallel for reduction(+:res)
-            // for (int i = 0; i < vec1.size; i++)
-            //     res += vec1.A[i] * vec2.A[i];
+            MPI_Allreduce(&res, &res, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
             // time = omp_get_wtime() - time;
             // globtime += time;
@@ -470,13 +451,8 @@ class Vector
                 vec1.A[i + 3] = a * vec1.A[i + 3] + b * vec2.A[i + 3];
             }
 
-            // #pragma omp parallel for
             for (int i = ss; i < vec1.size; i++)
                 vec1.A[i] = a * vec1.A[i] + b * vec2.A[i];
-
-            // #pragma omp parallel for
-            // for (int i = 0; i < vec1.size; i++)
-            //     vec1.A[i] = a * vec1.A[i] + b * vec2.A[i];
 
             // time = omp_get_wtime() - time;
             // globtime += time;
@@ -493,13 +469,8 @@ class Vector
                 return -1;
             }
 
-            // for (int i = 0; i < vec.size; i++)
-            //     for (int j = 0; j < vec.size; j++)
-            //         res.A[i] += mat.get(i, j) * vec.A[j];
-
             res = 0.0;
 
-            // much faster
             #pragma omp parallel for
             for (int i = 0; i < mat.sizeIA - 1; i++)
             {
@@ -510,16 +481,60 @@ class Vector
 
             return 0;
         }
+
+        friend void sync(Vector &vec, int ** &halo, int ** &sHalo, int haloOptSize)
+        {
+            MPI_Request *ss = new MPI_Request [haloOptSize];
+            MPI_Request *rr = new MPI_Request [haloOptSize];
+
+            double **recv = new double* [haloOptSize]; // halo
+            double **send = new double* [haloOptSize]; // sHalo
+
+            for (int i = 0; i < haloOptSize; i++)
+            {
+                recv[i] = new double [halo[i][1]];
+                send[i] = new double [sHalo[i][1]];
+
+                for (int j = 0; j < sHalo[i][1]; j++)
+                    send[i][j] = vec.A[sHalo[i][j + 2]];
+
+                MPI_Isend(send[i], sHalo[i][1], MPI_DOUBLE, sHalo[i][0], 0, MPI_COMM_WORLD, &(ss[i]));
+                MPI_Irecv(recv[i], halo[i][1], MPI_DOUBLE, halo[i][0], MPI_ANY_TAG, MPI_COMM_WORLD, &(rr[i]));
+            }
+
+            MPI_Waitall(haloOptSize, ss, MPI_STATUS_IGNORE);
+            MPI_Waitall(haloOptSize, rr, MPI_STATUS_IGNORE);
+
+            for (int i = 0; i < haloOptSize; i++)
+                for (int j = 0; j < halo[i][1]; j++)
+                    vec.A[halo[i][j + 2]] = recv[i][j];
+
+
+            for (int i = 0; i < haloOptSize; i++)
+            {
+                delete [] recv[i];
+                delete [] send[i];
+            }
+            delete [] recv;
+            delete [] send;
+
+            delete [] ss;
+            delete [] rr;
+            return;
+        }
 };
 
 
-int solve(int N, Matrix &A, Vector &BB, double tol, int maxit, int debug)
+int solve(int N, Matrix &A, Vector &BB, double tol, int maxit, int debug, int ** &halo, int ** &sHalo, int haloOptSize,
+        int rowsSize, int haloRedSize, int *rows)
 {
     int I = 0;
-    Vector XX(N, 0.0);
+    Vector XX(rowsSize, haloRedSize, rows);
     Matrix DD(A, 1);
 
-    Vector PP(N, 0.0), PP2(N, 0.0), RR(N, 0.0), RR2(N, 0.0), TT(N, 0.0), VV(N, 0.0), SS(N, 0.0), SS2(N, 0.0);
+    Vector PP(rowsSize, haloRedSize, rows), PP2(rowsSize, haloRedSize, rows),
+    RR(rowsSize, haloRedSize, rows), RR2(rowsSize, haloRedSize, rows), TT(rowsSize, haloRedSize, rows),
+    VV(rowsSize, haloRedSize, rows), SS(rowsSize, haloRedSize, rows), SS2(rowsSize, haloRedSize, rows);
     double initres = 0.0, res = 0.0, mineps = 1e-15, eps = 0.0;
     double Rhoi_1 = 1.0, alphai = 1.0, wi = 1.0, betai_1 = 1.0, Rhoi_2 = 1.0, alphai_1 = 1.0, wi_1 = 1.0, RhoMin = 1e-60;
 
@@ -556,7 +571,9 @@ int solve(int N, Matrix &A, Vector &BB, double tol, int maxit, int debug)
             axpby(PP, VV, 1.0, -wi_1 * betai_1);
         }
 
+        sync(PP, halo, sHalo, haloOptSize);
         SpMV(DD, PP, PP2);
+        sync(PP2, halo, sHalo, haloOptSize);
         SpMV(A, PP2, VV);
 
         alphai = dot(RR2, VV);
@@ -569,7 +586,9 @@ int solve(int N, Matrix &A, Vector &BB, double tol, int maxit, int debug)
         SS = RR;
         axpby(SS, VV, 1.0, -alphai);
 
+        sync(SS, halo, sHalo, haloOptSize);
         SpMV(DD, SS, SS2);
+        sync(SS2, halo, sHalo, haloOptSize);
         SpMV(A, SS2, TT);
 
         wi = dot(TT, TT);
@@ -593,7 +612,7 @@ int solve(int N, Matrix &A, Vector &BB, double tol, int maxit, int debug)
 
         res = sqrt(dot(RR, RR));
     }
-    cout << "> Final discrepancy = " << res << endl;
+        cout << "> Final discrepancy = " << res << endl;
 
     // if (debug != 0)
     // {
@@ -612,7 +631,7 @@ int solve(int N, Matrix &A, Vector &BB, double tol, int maxit, int debug)
     return I;
 }
 
-int testFunc(int Nx, int Ny, int Nz, int N)
+int testFunc(int Px, int Py, int Pz, int myRank, int haloRedSize, int ** &halo, int ** &sHalo, int haloOptSize)
 {
     int thread[6] = {1, 2, 4, 8, 10, 16};
     int xx[5] = {10, 10, 10, 100, 100};
@@ -620,10 +639,32 @@ int testFunc(int Nx, int Ny, int Nz, int N)
     int zz[5] = {10, 100, 100, 100, 1000};
     for (int k = 0; k < 5; k++)
     {
-        Nx = xx[k];
-        Ny = yy[k];
-        Nz = zz[k];
-        N = Nx * Ny * Nz;
+        int Nx = xx[k];
+        int Ny = yy[k];
+        int Nz = zz[k];
+        int N = Nx * Ny * Nz;
+
+        int kk = myRank / (Px * Py),
+        jj = (myRank % (Px * Py)) / Px,
+        ii = myRank - kk * (Px * Py) - jj * Px;
+
+        int Nxp = int(ceil(double(Nx) / double(Px))),
+            Nyp = int(ceil(double(Ny) / double(Py))),
+            Nzp = int(ceil(double(Nz) / double(Pz)));
+
+        int startI = ii * Nxp,
+            startJ = jj * Nyp,
+            startK = kk * Nzp;
+
+        if (ii == Px - 1)
+            Nxp = Nx - ii * Nxp;
+        if (jj == Py - 1)
+            Nyp = Ny - jj * Nyp;
+        if (kk == Pz - 1)
+            Nzp = Nz - kk * Nzp;
+
+        int rowsSize = Nxp * Nyp * Nzp;
+
         cout << Nx << ' ' << Ny << ' ' << Nz << ' ' << N << endl;
 
         long double seqTimeDot = 0.0;
@@ -632,84 +673,102 @@ int testFunc(int Nx, int Ny, int Nz, int N)
 
         for (int i = 0; i < 6; i++)
         {
-            Vector testVec1(N, 0), testVec2(N, 0);
-            Vector testRes(N, 0.0);
-            Matrix testMat(Nx, Ny, Nz, 1, 1, 1, 1, 1, 1, NULL);
+            int *rows = new int [rowsSize];
+            Matrix testMat(startI, startJ, startK, Nxp, Nyp, Nzp, Nx, Ny, Nz, rows);
+            Vector testVec1(rowsSize, haloRedSize, rows), testVec2(rowsSize, haloRedSize, rows);
+            Vector testRes(rowsSize, haloRedSize, 0.0);
 
-            int corner = 4 * 8;
-            int edge = 5 * 4 * ((Nx - 2) + (Ny - 2) + (Nz - 2));
-            int face = 6 * 2 * (((Nx - 2) * (Ny - 2)) + ((Nx - 2) * (Nz - 2)) + ((Ny - 2) * (Nz - 2)));
-            int inner = 7 * (Nx - 2) * (Ny - 2) * (Nz - 2);
-            int sizeA = corner + edge + face + inner;
-            // int num = 1 << i;
             int num = thread[i];
 
             omp_set_num_threads(num);
-            cout << "> Threads = " << num << endl << endl;
+            if (myRank == 0)
+                cout << "> Threads = " << num << endl << endl;
 
             long double operations = 1e-9 * 2 * N;
+            long double testTimeR = 0.0;
             long double testTime = omp_get_wtime();
-            cout << "> DOT = " << dot(testVec1, testVec2) << endl;
+            long double dotRes = dot(testVec1, testVec2);
             testTime = omp_get_wtime() - testTime;
-            cout << "> Time of DOT = " << testTime << endl;
-            cout << "> GFLOPS = " << operations / testTime << endl;
-            if (i == 0)
-                seqTimeDot = testTime;
-            cout << "> SpeedUp = " << seqTimeDot / testTime << endl;
-            cout << endl;
+            MPI_Reduce(&testTime, &testTimeR, 1, MPI_LONG_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+            if (myRank == 0)
+            {
+                cout << "> DOT = " << dotRes << endl;
+                cout << "> Time of DOT = " << testTimeR << endl;
+                cout << "> GFLOPS = " << operations / testTimeR << endl;
+                if (i == 0)
+                    seqTimeDot = testTimeR;
+                cout << "> SpeedUp = " << seqTimeDot / testTimeR << endl;
+                cout << endl;
+            }
 
 
             operations = 1e-9 * 3 * N;
             testTime = omp_get_wtime();
             axpby(testVec1, testVec2, 1.0, 2.0);
             testTime = omp_get_wtime() - testTime;
-            cout << "> AXPBY L2 norm = " << sqrt(dot(testVec1, testVec1)) << endl;
-            cout << "> Time of AXPBY = " << testTime << endl;
-            cout << "> GFLOPS = " << operations / testTime << endl;
-            if (i == 0)
-                seqTimeAxpby = testTime;
-            cout << "> SpeedUp = " << seqTimeAxpby / testTime << endl;
-            cout << endl;
+            MPI_Reduce(&testTime, &testTimeR, 1, MPI_LONG_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+            if (myRank == 0)
+            {
+                cout << "> AXPBY L2 norm = " << sqrt(dot(testVec1, testVec1)) << endl;
+                cout << "> Time of AXPBY = " << testTimeR << endl;
+                cout << "> GFLOPS = " << operations / testTimeR << endl;
+                if (i == 0)
+                    seqTimeAxpby = testTimeR;
+                cout << "> SpeedUp = " << seqTimeAxpby / testTimeR << endl;
+                cout << endl;
+            }
 
 
             operations = 1e-9 * 2 * N * 7;
             testTime = omp_get_wtime();
+            sync(testVec2, halo, sHalo, haloOptSize);
             SpMV(testMat, testVec2, testVec1);
             testTime = omp_get_wtime() - testTime;
-            cout << "> SpMV L2 norm = " << sqrt(dot(testVec1, testVec1)) << endl;
-            cout << "> Time of SpMV = " << testTime << endl;
-            cout << "> GFLOPS = " << operations / testTime << endl;
-            if (i == 0)
-                seqTimeSpmv = testTime;
-            cout << "> SpeedUp = " << seqTimeSpmv / testTime << endl;
-            cout << endl;
+            MPI_Reduce(&testTime, &testTimeR, 1, MPI_LONG_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+            if (myRank == 0)
+            {
+                cout << "> SpMV L2 norm = " << sqrt(dot(testVec1, testVec1)) << endl;
+                cout << "> Time of SpMV = " << testTimeR << endl;
+                cout << "> GFLOPS = " << operations / testTimeR << endl;
+                if (i == 0)
+                    seqTimeSpmv = testTimeR;
+                cout << "> SpeedUp = " << seqTimeSpmv / testTimeR << endl;
+                cout << endl;
+            }
 
 
             if ((k == 4) && (i == 5))
             {
                 Matrix A(Nx, Ny, Nz, 1, 1, 1, 1, 1, 1, NULL);
-                Vector BB(N, 0);
+                Vector BB(N);
 
-                cout << "> Solver test..." << endl << endl;
+                if (myRank == 0)
+                    cout << "> Solver test..." << endl << endl;
                 long double seqTimeSolve = 0.0;
                 for (int j = 0; j < 6; j++)
                 {
                     omp_set_num_threads(thread[j]);
-                    cout << "> Number of threads = " << thread[j] << endl;
+                    if (myRank == 0)
+                        cout << "> Number of threads = " << thread[j] << endl;
                     // 5 dot 6 axpby 4 spmv N diag
                     long double operations = 1e-9 * (5 * (2 * N) + 6 * (3 * N) + 4 * (2 * N * 7) + N);
                     long double time = omp_get_wtime();
-                    int res = solve(N, A, BB, 0.000000001, 1000, 1);
+                    int res = solve(N, A, BB, 0.000000001, 1000, 1, halo, sHalo, haloOptSize, rowsSize, haloRedSize, rows);
                     time = omp_get_wtime() - time;
-                    cout << "> Numder of iters = " << res << endl;
-                    cout << "> Final time of computation = " << time << endl;
-                    cout << "> GFLOPS = " << operations / time << endl;
-                    if (j == 0)
-                        seqTimeSolve = time;
-                    cout << "> SpeedUp = " << seqTimeSolve / time << endl;
-                    cout << endl;
+                    MPI_Reduce(&time, &testTimeR, 1, MPI_LONG_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+                    if (myRank == 0)
+                    {
+                        cout << "> Numder of iters = " << res << endl;
+                        cout << "> Final time of computation = " << testTimeR << endl;
+                        cout << "> GFLOPS = " << operations / testTimeR << endl;
+                        if (j == 0)
+                            seqTimeSolve = testTimeR;
+                        cout << "> SpeedUp = " << seqTimeSolve / testTimeR << endl;
+                        cout << endl;
+                    }
                 }
             }
+            delete [] rows;
         }
     }
 
@@ -763,8 +822,6 @@ int main (int argc, char **argv)
     int startI = ii * Nxp,
         startJ = jj * Nyp,
         startK = kk * Nzp;
-
-    int Np = myRank * int(ceil(double(N) / double(nProc)));
 
     if (ii == Px - 1)
         Nxp = Nx - ii * Nxp;
@@ -845,9 +902,95 @@ int main (int argc, char **argv)
     }
     makeHalo(A, global2loc, part, rows, halo, sHalo, haloSize);
 
+    int haloRedSize = 6 * haloSize;
+    int *haloRed = new int [haloRedSize];
+
+    int curHR = 0;
+    for (int i = 0; i < nProc; i++)
+        if (halo[i][0] != -1)
+            for (int j = 0; j < haloSize; j++)
+                if (halo[i][j] != -1)
+                    haloRed[curHR++] = halo[i][j];
+    haloRedSize = curHR;
+
+    // update g2l
+    for (int i = 0; i < haloRedSize; i++)
+        global2loc[haloRed[i]] = i + rowsSize;
+    changeJA(A, global2loc);
+
+    Vector BB(rowsSize, haloRedSize, rows);
+
+
+    // optimized halo
+    int *tmpH = new int [nProc];
+    int *tmpSH = new int [nProc];
+    int haloOptSize = 0;
+
+    for (int i = 0; i < nProc; i++)
+    {
+        tmpH[i] = 0;
+        tmpSH[i] = 0;
+    }
+
+    for (int i = 0; i < nProc; i++)
+    {
+        if (halo[i][0] != -1)
+        {
+            haloOptSize++;
+            for (int j = 0; j < haloSize; j++)
+                if (halo[i][j] != -1)
+                    tmpH[i]++;
+        }
+        if (sHalo[i][0] != -1)
+        {
+            for (int j = 0; j < haloSize; j++)
+                if (sHalo[i][j] != -1)
+                    tmpSH[i]++;
+        }
+    }
+
+
+    int **haloOpt = NULL, **sHaloOpt = NULL;
+    haloOpt = new int* [haloOptSize];
+    sHaloOpt = new int* [haloOptSize];
+
+
+    int curH = 0, curSH = 0;
+    for (int i = 0; i < nProc; i++)
+    {
+        if (halo[i][0] != -1)
+        {
+            haloOpt[curH] = new int [tmpH[i] + 2];
+            haloOpt[curH][0] = i;
+            haloOpt[curH][1] = tmpH[i];
+            for (int j = 0; j < tmpH[i]; j++)
+                haloOpt[curH][j + 2] = halo[i][j];
+            curH++;
+        }
+
+        if (sHalo[i][0] != -1)
+        {
+            sHaloOpt[curSH] = new int [tmpSH[i] + 2];
+            sHaloOpt[curSH][0] = i;
+            sHaloOpt[curSH][1] = tmpSH[i];
+            for (int j = 0; j < tmpSH[i]; j++)
+                sHaloOpt[curSH][j + 2] = sHalo[i][j];
+            curSH++;
+        }
+    }
+
+    // update opt halo by g2l
+    for (int i = 0; i < haloOptSize; i++)
+    {
+        for (int j = 0; j < haloOpt[i][1]; j++)
+            haloOpt[i][j + 2] = global2loc[haloOpt[i][j + 2]];
+        for (int j = 0; j < sHaloOpt[i][1]; j++)
+            sHaloOpt[i][j + 2] = global2loc[sHaloOpt[i][j + 2]];
+    }
+
 
     // print
-    if (myRank == 0)
+    // if (myRank == 0)
     {
         // cout << "ROWS" << endl;
         // for (int i = 0; i < rowsSize; i++)
@@ -863,94 +1006,90 @@ int main (int argc, char **argv)
         // cout << endl;
 
         // A.printCSR();
+        // cout << endl;
+        // BB.print();
 
-        cout << "HALO" << endl;
-        for (int i = 0; i < nProc; i++)
-        {
-            for (int j = 0; j < haloSize; j++)
-                if (halo[i][j] != -1)
-                {
-                    cout << i << "    ";
-                    for (int j = 0; j < haloSize; j++)
-                         if (halo[i][j] != -1)
-                            cout << halo[i][j] << ' ';
-                    cout << endl;
-                    break;
-                }
-        }
+        // cout << "HALO" << endl;
+        // for (int i = 0; i < nProc; i++)
+        // {
+        //     for (int j = 0; j < haloSize; j++)
+        //         if (halo[i][j] != -1)
+        //         {
+        //             cout << i << "    ";
+        //             for (int j = 0; j < haloSize; j++)
+        //                  if (halo[i][j] != -1)
+        //                     cout << halo[i][j] << ' ';
+        //             cout << endl;
+        //             break;
+        //         }
+        // }
 
-        cout << "SHALO" << endl;
-        for (int i = 0; i < nProc; i++)
-        {
-            for (int j = 0; j < haloSize; j++)
-                if (sHalo[i][j] != -1)
-                {
-                    cout << i << "    ";
-                    for (int j = 0; j < haloSize; j++)
-                         if (halo[i][j] != -1)
-                            cout << sHalo[i][j] << ' ';
-                    cout << endl;
-                    break;
-                }
-        }
+        // cout << "SHALO" << endl;
+        // for (int i = 0; i < nProc; i++)
+        // {
+        //     for (int j = 0; j < haloSize; j++)
+        //         if (sHalo[i][j] != -1)
+        //         {
+        //             cout << i << "    ";
+        //             for (int j = 0; j < haloSize; j++)
+        //                  if (halo[i][j] != -1)
+        //                     cout << sHalo[i][j] << ' ';
+        //             cout << endl;
+        //             break;
+        //         }
+        // }
+        // cout << endl;
+
+        // cout << "HALOOPT" << endl;
+        // for (int i = 0; i < haloOptSize; i++)
+        // {
+        //     cout << haloOpt[i][0] << "    ";
+        //     for (int j = 0; j < haloOpt[i][1]; j++)
+        //         cout << haloOpt[i][j + 2] << ' ';
+        //     cout << endl;
+        // }
+        // cout << endl;
+        // cout << "SHALOOPT" << endl;
+        // for (int i = 0; i < haloOptSize; i++)
+        // {
+        //     cout << sHaloOpt[i][0] << "    ";
+        //     for (int j = 0; j < sHaloOpt[i][1]; j++)
+        //         cout << sHaloOpt[i][j + 2] << ' ';
+        //     cout << endl;
+        // }
+
+        // cout << "ALLHALO" << endl;
+        // for (int i = 0; i < haloRedSize; i++)
+        //     cout << haloRed[i] << " ";
+        // cout << endl;
 
         // cout << haloSize << endl;
     }
 
-    // MPI_Barrier(MPI_COMM_WORLD);
 
-    // if (myRank == 14)
-    // {
-    //     // cout << "ROWS" << endl;
-    //     // for (int i = 0; i < rowsSize; i++)
-    //     //     cout << rows[i] << ' ';
-    //     // cout << endl << endl;
-    //     // cout << "G2L" << endl;
-    //     // for (int i = 0; i < N; i++)
-    //     //     cout << global2loc[i] << ' ';
-    //     // cout << endl << endl;
-    //     // cout << "PART" << endl;
-    //     // for (int i = 0; i < N; i++)
-    //     //     cout << part[i] << ' ';
-    //     // cout << endl;
-
-    //     // A.printCSR();
-
-    //     cout << "HALO" << endl;
-    //     for (int i = 0; i < nProc; i++)
-    //     {
-    //         for (int j = 0; j < haloSize; j++)
-    //             if (halo[i][j] != -1)
-    //             {
-    //                 cout << i << "    ";
-    //                 for (int j = 0; j < haloSize; j++)
-    //                      if (halo[i][j] != -1)
-    //                         cout << halo[i][j] << ' ';
-    //                 cout << endl;
-    //                 break;
-    //             }
-    //     }
-
-    //     cout << "SHALO" << endl;
-    //     for (int i = 0; i < nProc; i++)
-    //     {
-    //         for (int j = 0; j < haloSize; j++)
-    //             if (sHalo[i][j] != -1)
-    //             {
-    //                 cout << i << "    ";
-    //                 for (int j = 0; j < haloSize; j++)
-    //                      if (halo[i][j] != -1)
-    //                         cout << sHalo[i][j] << ' ';
-    //                 cout << endl;
-    //                 break;
-    //             }
-    //     }
-
-    //     // cout << haloSize << endl;
-    // }
-
-
-
+    if (debug != 0)
+        testFunc(Px, Py, Pz, myRank, haloRedSize, haloOpt, sHaloOpt, haloOptSize);
+    else
+    {
+        omp_set_num_threads(atoi(argv[6]));
+        // 5 dot 6 axpby 4 spmv N diag
+        long double operations = 1e-9 * (5 * (2 * N) + 6 * (3 * N) + 4 * (2 * N * 7) + N);
+        if (myRank == 0)
+            cout << "> Number of threads = " << atoi(argv[6]) << endl;
+        long double time = omp_get_wtime();
+        int res = solve(N, A, BB, tol, maxit, debug, haloOpt, sHaloOpt, haloOptSize, rowsSize, haloRedSize, rows);
+        time = omp_get_wtime() - time;
+        long double timeR = 0.0;
+        MPI_Reduce(&time, &timeR, 1, MPI_LONG_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+        if (myRank == 0)
+        {
+            cout << "> Number of iters = " << res << endl;
+            cout << "> Final time of computation = " << timeR << endl;
+            cout << "> GFLOPS = " << operations / timeR << endl;
+        }
+    }
+    if (myRank == 0)
+        cout << "> Operation time = " << globtime << endl;
 
     delete [] rows;
     delete [] global2loc;
@@ -960,46 +1099,19 @@ int main (int argc, char **argv)
         delete [] halo[i];
         delete [] sHalo[i];
     }
+    delete [] part;
     delete [] halo;
     delete [] sHalo;
-    MPI_Finalize();
-    return 0;
-
-
-    Vector BB(Nxp * Nyp * Nzp, Np);
-
-    // if (myRank == 0)
-    // {
-    //     // cout << Nxp << ' ' << Nyp << ' ' << Nzp << ' ' << startI << ' ' << startJ << ' ' << startK << endl;
-    //     A.print(1);
-    //     // cout << A.get(0, 100) << endl;
-    // }
-
-
-
-
-    // if (debug != 0)
-    //     testFunc(Nx, Ny, Nz, N);
-    // else
-    // {
-    //     omp_set_num_threads(atoi(argv[6]));
-    //     // 5 dot 6 axpby 4 spmv N diag
-    //     long double operations = 1e-9 * (5 * (2 * N) + 6 * (3 * N) + 4 * (2 * N * 7) + N);
-    //     cout << "> Number of threads = " << atoi(argv[6]) << endl;
-    //     long double time = omp_get_wtime();
-    //     int res = solve(N, A, BB, tol, maxit, debug);
-    //     time = omp_get_wtime() - time;
-    //     cout << "> Number of iters = " << res << endl;
-    //     cout << "> Final time of computation = " << time << endl;
-    //     cout << "> GFLOPS = " << operations / time << endl;
-    // }
-    // cout << "> Operation time = " << globtime << endl;
-
-    // delete [] rows;
-    // delete [] global2loc;
-    // delete [] halo;
-    // delete [] sHalo;
-
+    delete [] haloRed;
+    for (int i = 0; i < haloOptSize; i++)
+    {
+        delete [] haloOpt[i];
+        delete [] sHaloOpt[i];
+    }
+    delete [] haloOpt;
+    delete [] sHaloOpt;
+    delete [] tmpH;
+    delete [] tmpSH;
     MPI_Finalize();
     return 0;
 }
