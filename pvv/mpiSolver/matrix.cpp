@@ -631,7 +631,7 @@ int solve(int N, Matrix &A, Vector &BB, double tol, int maxit, int debug, int **
     return I;
 }
 
-int testFunc(int Px, int Py, int Pz, int myRank, int haloRedSize, int ** &halo, int ** &sHalo, int haloOptSize)
+int testFunc(int Px, int Py, int Pz, int myRank, int nProc)
 {
     int thread[6] = {1, 2, 4, 8, 10, 16};
     int xx[5] = {10, 10, 10, 100, 100};
@@ -665,7 +665,159 @@ int testFunc(int Px, int Py, int Pz, int myRank, int haloRedSize, int ** &halo, 
 
         int rowsSize = Nxp * Nyp * Nzp;
 
-        cout << Nx << ' ' << Ny << ' ' << Nz << ' ' << N << endl;
+        int *rows = new int [rowsSize];
+        int *global2loc = new int [N];
+        int *part = new int [N];
+
+        int **halo = NULL, **sHalo = NULL;
+
+        for (int i = 0; i < rowsSize; i++)
+            rows[i] = -1;
+
+        // part
+        for (int i = 0; i < nProc; i++)
+        {
+            int kk = i / (Px * Py),
+                jj = (i % (Px * Py)) / Px,
+                ii = i - kk * (Px * Py) - jj * Px;
+
+            int Nxp = int(ceil(double(Nx) / double(Px))),
+                Nyp = int(ceil(double(Ny) / double(Py))),
+                Nzp = int(ceil(double(Nz) / double(Pz)));
+
+            int startI = ii * Nxp,
+                startJ = jj * Nyp,
+                startK = kk * Nzp;
+
+            if (ii == Px - 1)
+                Nxp = Nx - ii * Nxp;
+            if (jj == Py - 1)
+                Nyp = Ny - jj * Nyp;
+            if (kk == Pz - 1)
+                Nzp = Nz - kk * Nzp;
+
+            int Ppx = Nxp + startI,
+                Ppy = Nyp + startJ,
+                Ppz = Nzp + startK;
+
+            for (int k = startK; k < Ppz; k++)
+                for (int j = startJ; j < Ppy; j++)
+                    for (int l = startI; l < Ppx; l++)
+                        part[l + Nx * j + Nx * Ny * k] = i;
+        }
+
+
+        Matrix A(startI, startJ, startK, Nxp, Nyp, Nzp, Nx, Ny, Nz, rows);
+
+        // g2l
+        for (int i = 0; i < N; i++)
+            global2loc[i] = -1;
+        for (int i = 0; i < rowsSize; i++)
+            if (rows[i] != -1)
+                global2loc[rows[i]] = i;
+
+        halo = new int* [nProc];
+        sHalo = new int* [nProc];
+
+        // halo shalo
+        int haloSize = 2 * (Nxp * Nyp + Nxp * Nzp + Nyp * Nzp);
+        for (int i = 0; i < nProc; i++)
+        {
+            halo[i] = new int [haloSize];
+            sHalo[i] = new int [haloSize];
+
+            for (int j = 0; j < haloSize; j++)
+            {
+                halo[i][j] = -1;
+                sHalo[i][j] = -1;
+            }
+        }
+        makeHalo(A, global2loc, part, rows, halo, sHalo, haloSize);
+
+        int haloRedSize = 6 * haloSize;
+        int *haloRed = new int [haloRedSize];
+
+        int curHR = 0;
+        for (int i = 0; i < nProc; i++)
+            if (halo[i][0] != -1)
+                for (int j = 0; j < haloSize; j++)
+                    if (halo[i][j] != -1)
+                        haloRed[curHR++] = halo[i][j];
+        haloRedSize = curHR;
+
+        // update g2l
+        for (int i = 0; i < haloRedSize; i++)
+            global2loc[haloRed[i]] = i + rowsSize;
+        changeJA(A, global2loc);
+
+        // optimized halo
+        int *tmpH = new int [nProc];
+        int *tmpSH = new int [nProc];
+        int haloOptSize = 0;
+
+        for (int i = 0; i < nProc; i++)
+        {
+            tmpH[i] = 0;
+            tmpSH[i] = 0;
+        }
+
+        for (int i = 0; i < nProc; i++)
+        {
+            if (halo[i][0] != -1)
+            {
+                haloOptSize++;
+                for (int j = 0; j < haloSize; j++)
+                    if (halo[i][j] != -1)
+                        tmpH[i]++;
+            }
+            if (sHalo[i][0] != -1)
+            {
+                for (int j = 0; j < haloSize; j++)
+                    if (sHalo[i][j] != -1)
+                        tmpSH[i]++;
+            }
+        }
+
+
+        int **haloOpt = NULL, **sHaloOpt = NULL;
+        haloOpt = new int* [haloOptSize];
+        sHaloOpt = new int* [haloOptSize];
+
+
+        int curH = 0, curSH = 0;
+        for (int i = 0; i < nProc; i++)
+        {
+            if (halo[i][0] != -1)
+            {
+                haloOpt[curH] = new int [tmpH[i] + 2];
+                haloOpt[curH][0] = i;
+                haloOpt[curH][1] = tmpH[i];
+                for (int j = 0; j < tmpH[i]; j++)
+                    haloOpt[curH][j + 2] = halo[i][j];
+                curH++;
+            }
+
+            if (sHalo[i][0] != -1)
+            {
+                sHaloOpt[curSH] = new int [tmpSH[i] + 2];
+                sHaloOpt[curSH][0] = i;
+                sHaloOpt[curSH][1] = tmpSH[i];
+                for (int j = 0; j < tmpSH[i]; j++)
+                    sHaloOpt[curSH][j + 2] = sHalo[i][j];
+                curSH++;
+            }
+        }
+
+        // update opt halo by g2l
+        for (int i = 0; i < haloOptSize; i++)
+        {
+            for (int j = 0; j < haloOpt[i][1]; j++)
+                haloOpt[i][j + 2] = global2loc[haloOpt[i][j + 2]];
+            for (int j = 0; j < sHaloOpt[i][1]; j++)
+                sHaloOpt[i][j + 2] = global2loc[sHaloOpt[i][j + 2]];
+        }
+
+        // cout << Nx << ' ' << Ny << ' ' << Nz << ' ' << N << endl;
 
         long double seqTimeDot = 0.0;
         long double seqTimeAxpby = 0.0;
@@ -837,7 +989,6 @@ int main (int argc, char **argv)
     int *part = new int [N];
 
     int **halo = NULL, **sHalo = NULL;
-
 
     for (int i = 0; i < rowsSize; i++)
         rows[i] = -1;
@@ -1068,7 +1219,7 @@ int main (int argc, char **argv)
 
 
     if (debug != 0)
-        testFunc(Px, Py, Pz, myRank, haloRedSize, haloOpt, sHaloOpt, haloOptSize);
+        testFunc(Px, Py, Pz, myRank, nProc);
     else
     {
         omp_set_num_threads(atoi(argv[6]));
