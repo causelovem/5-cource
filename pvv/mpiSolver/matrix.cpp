@@ -397,6 +397,21 @@ class Vector
 
             return;
         }
+
+        void printFull()
+        {
+            cout << "Vector" << endl;
+            for (int i = 0; i < locSize; i++)
+            {
+                if (fabs(A[i]) < 0.000001)
+                    cout << 0 << ' ';
+                else
+                    cout << A[i] << ' ';
+            }
+            cout << endl;
+
+            return;
+        }
     
         friend double dot(const Vector &vec1, const Vector &vec2)
         {
@@ -467,7 +482,7 @@ class Vector
                 return -1;
             }
 
-            res = 0.0;
+            // res = 0.0;
 
             #pragma omp parallel for
             for (int i = 0; i < mat.sizeIA - 1; i++)
@@ -524,7 +539,7 @@ class Vector
 
 
 int solve(int N, Matrix &A, Vector &BB, double tol, int maxit, int debug, int ** &halo, int ** &sHalo, int haloOptSize,
-        int rowsSize, int haloRedSize, int * &rows)
+        int rowsSize, int haloRedSize, int * &rows, int myRank)
 {
     int I = 0;
     Vector XX(rowsSize, haloRedSize, rows);
@@ -545,8 +560,8 @@ int solve(int N, Matrix &A, Vector &BB, double tol, int maxit, int debug, int **
 
     for (I = 0; I < maxit; I++)
     {
-        // if (debug != 0)
-        //     cout << "It = " << I << "; res = " << res << "; tol = " << res / initres << endl;
+        if ((debug != 0) && (myRank == 0))
+            cout << "It = " << I << "; res = " << res << "; tol = " << res / initres << endl;
 
         if (res < eps)
             break;
@@ -629,11 +644,9 @@ int solve(int N, Matrix &A, Vector &BB, double tol, int maxit, int debug, int **
     return I;
 }
 
-// int testFunc(int Px, int Py, int Pz, int myRank, int nProc)
-// int solve(int N, Matrix &A, Vector &BB, double tol, int maxit, int debug, int ** &halo, int ** &sHalo, int haloOptSize,
-//         int rowsSize, int haloRedSize, int * &rows)
-int testFunc(int Nx, int Ny, int Nz, int Px, int Py, int Pz, int ** &halo, int ** &sHalo, int * &rows,
-            int haloOptSize, int rowsSize, int haloRedSize, int myRank, int nProc)
+
+int testFunc(int N, int ** &halo, int ** &sHalo, int * &rows,
+            int haloOptSize, int rowsSize, int haloRedSize, int myRank, int nProc, Matrix &A, Vector &BB)
 {
     int thread[6] = {1, 2, 4, 8, 10, 16};
 
@@ -641,42 +654,20 @@ int testFunc(int Nx, int Ny, int Nz, int Px, int Py, int Pz, int ** &halo, int *
     long double seqTimeAxpby = 0.0;
     long double seqTimeSpmv = 0.0;
 
-    int N = Nx * Ny * Nz;
-
-    int kk = myRank / (Px * Py),
-        jj = (myRank % (Px * Py)) / Px,
-        ii = myRank - kk * (Px * Py) - jj * Px;
-
-    int Nxp = int(ceil(double(Nx) / double(Px))),
-        Nyp = int(ceil(double(Ny) / double(Py))),
-        Nzp = int(ceil(double(Nz) / double(Pz)));
-
-    int startI = ii * Nxp,
-        startJ = jj * Nyp,
-        startK = kk * Nzp;
-
-    if (ii == Px - 1)
-        Nxp = Nx - ii * Nxp;
-    if (jj == Py - 1)
-        Nyp = Ny - jj * Nyp;
-    if (kk == Pz - 1)
-        Nzp = Nz - kk * Nzp;
+    // int N = Nx * Ny * Nz;
 
     MPI_Barrier(MPI_COMM_WORLD);
 
     for (int i = 0; i < 6; i++)
     {
-        Matrix testMat(startI, startJ, startK, Nxp, Nyp, Nzp, Nx, Ny, Nz, rows);
         Vector testVec1(rowsSize, haloRedSize, rows), testVec2(rowsSize, haloRedSize, rows);
-        Vector testRes(rowsSize, haloRedSize, 0.0);
 
         int num = thread[i];
-
         omp_set_num_threads(num);
         if (myRank == 0)
             cout << "> Threads = " << num << endl << endl;
 
-        long double operations = 1e-9 * 2 * N;
+        long double operations = 1e-9 * 2 * N / nProc;
         long double testTimeR = 0.0;
         long double testTime = MPI_Wtime();
         long double dotRes = dot(testVec1, testVec2);
@@ -695,14 +686,15 @@ int testFunc(int Nx, int Ny, int Nz, int Px, int Py, int Pz, int ** &halo, int *
         MPI_Barrier(MPI_COMM_WORLD);
 
 
-        operations = 1e-9 * 3 * N;
+        operations = 1e-9 * 3 * N / nProc;
         testTime = MPI_Wtime();
         axpby(testVec1, testVec2, 1.0, 2.0);
         testTime = MPI_Wtime() - testTime;
         MPI_Reduce(&testTime, &testTimeR, 1, MPI_LONG_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+        dotRes = dot(testVec1, testVec1);
         if (myRank == 0)
         {
-            cout << "> AXPBY L2 norm = " << sqrt(dot(testVec1, testVec1)) << endl;
+            cout << "> AXPBY L2 norm = " << sqrt(dotRes) << endl;
             cout << "> Time of AXPBY = " << testTimeR << endl;
             cout << "> GFLOPS = " << operations / testTimeR << endl;
             if (i == 0)
@@ -713,15 +705,16 @@ int testFunc(int Nx, int Ny, int Nz, int Px, int Py, int Pz, int ** &halo, int *
         MPI_Barrier(MPI_COMM_WORLD);
 
 
-        operations = 1e-9 * 2 * N * 7;
+        operations = 1e-9 * 2 * N * 7 / nProc;
         testTime = MPI_Wtime();
         sync(testVec2, halo, sHalo, haloOptSize);
-        SpMV(testMat, testVec2, testVec1);
+        SpMV(A, testVec2, testVec1);
         testTime = MPI_Wtime() - testTime;
         MPI_Reduce(&testTime, &testTimeR, 1, MPI_LONG_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+        dotRes = dot(testVec1, testVec1);
         if (myRank == 0)
         {
-            cout << "> SpMV L2 norm = " << sqrt(dot(testVec1, testVec1)) << endl;
+            cout << "> SpMV L2 norm = " << sqrt(dotRes) << endl;
             cout << "> Time of SpMV + sync = " << testTimeR << endl;
             cout << "> GFLOPS = " << operations / testTimeR << endl;
             if (i == 0)
@@ -732,27 +725,27 @@ int testFunc(int Nx, int Ny, int Nz, int Px, int Py, int Pz, int ** &halo, int *
         MPI_Barrier(MPI_COMM_WORLD);
 
 
-        Matrix A(startI, startJ, startK, Nxp, Nyp, Nzp, Nx, Ny, Nz, rows);
-        Vector BB(rowsSize, haloRedSize, rows);
+        // Matrix A(startI, startJ, startK, Nxp, Nyp, Nzp, Nx, Ny, Nz, rows);
+        // Vector BB(rowsSize, haloRedSize, rows);
 
         if (myRank == 0)
+        {
             cout << "> Solver test..." << endl << endl;
+            cout << "> Number of threads = " << num << endl;
+        }
         long double seqTimeSolve = 0.0;
 
-        if (myRank == 0)
-            cout << "> Number of threads = " << num << endl;
         // 5 dot 6 axpby 4 spmv N diag
         operations = 1e-9 * (5 * (2 * N) + 6 * (3 * N) + 4 * (2 * N * 7) + N) / nProc;
         long double time = MPI_Wtime();
-        int res = solve(N, A, BB, 0.000000001, 1000, 0, halo, sHalo, haloOptSize, rowsSize, haloRedSize, rows);
+        int res = solve(N, A, BB, 0.00001, 1000, 0, halo, sHalo, haloOptSize, rowsSize, haloRedSize, rows, myRank);
         time = MPI_Wtime() - time;
-        long double timeR = 0.0;
-        MPI_Reduce(&time, &timeR, 1, MPI_LONG_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+        MPI_Reduce(&time, &testTimeR, 1, MPI_LONG_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
         if (myRank == 0)
         {
             cout << "> Number of iters = " << res << endl;
-            cout << "> Final time of computation = " << timeR << endl;
-            cout << "> GFLOPS = " << operations * res / timeR << endl;
+            cout << "> Final time of computation = " << testTimeR << endl;
+            cout << "> GFLOPS = " << operations * res / testTimeR << endl;
             if (i == 0)
                 seqTimeSolve = testTimeR;
             cout << "> SpeedUp = " << seqTimeSolve / testTimeR << endl;
@@ -779,7 +772,7 @@ int main (int argc, char **argv)
     MPI_Init(&argc, &argv);
 
     int nProc = 0, myRank = 0;
-    MPI_Status status;
+    // MPI_Status status;
     MPI_Comm_size(MPI_COMM_WORLD, &nProc);
     MPI_Comm_rank(MPI_COMM_WORLD, &myRank);
 
@@ -1028,10 +1021,10 @@ int main (int argc, char **argv)
         // cout << haloSize << endl;
     }
 
-
     MPI_Barrier(MPI_COMM_WORLD);
+
     if (debug != 0)
-        testFunc(Nx, Ny, Nz, Px, Py, Pz, haloOpt, sHaloOpt, rows, haloOptSize, rowsSize, haloRedSize, myRank, nProc);
+        testFunc(N, haloOpt, sHaloOpt, rows, haloOptSize, rowsSize, haloRedSize, myRank, nProc, A, BB);
     else
     {
         omp_set_num_threads(atoi(argv[6]));
@@ -1040,7 +1033,7 @@ int main (int argc, char **argv)
         if (myRank == 0)
             cout << "> Number of threads = " << atoi(argv[6]) << endl;
         long double time = MPI_Wtime();
-        int res = solve(N, A, BB, tol, maxit, debug, haloOpt, sHaloOpt, haloOptSize, rowsSize, haloRedSize, rows);
+        int res = solve(N, A, BB, tol, maxit, debug, haloOpt, sHaloOpt, haloOptSize, rowsSize, haloRedSize, rows, myRank);
         time = MPI_Wtime() - time;
         long double timeR = 0.0;
         MPI_Reduce(&time, &timeR, 1, MPI_LONG_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
