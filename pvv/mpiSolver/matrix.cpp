@@ -435,13 +435,14 @@ class Vector
             for (int i = ss; i < vec1.size; i++)
                 res += vec1.A[i] * vec2.A[i];
 
-            MPI_Allreduce(&res, &res, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+            double resres = 0.0;
+            MPI_Allreduce(&res, &resres, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
             // time = omp_get_wtime() - time;
             // globtime += time;
             // cout << "> Time of computation = " << (time) << endl;
 
-            return res;
+            return resres;
         }
 
         friend int axpby(Vector &vec1, const Vector &vec2, double a, double b)
@@ -653,6 +654,7 @@ int testFunc(int N, int ** &halo, int ** &sHalo, int * &rows,
     long double seqTimeDot = 0.0;
     long double seqTimeAxpby = 0.0;
     long double seqTimeSpmv = 0.0;
+    long double seqTimeSolve = 0.0;
 
     // int N = Nx * Ny * Nz;
 
@@ -733,7 +735,6 @@ int testFunc(int N, int ** &halo, int ** &sHalo, int * &rows,
             cout << "> Solver test..." << endl << endl;
             cout << "> Number of threads = " << num << endl;
         }
-        long double seqTimeSolve = 0.0;
 
         // 5 dot 6 axpby 4 spmv N diag
         operations = 1e-9 * (5 * (2 * N) + 6 * (3 * N) + 4 * (2 * N * 7) + N) / nProc;
@@ -1024,14 +1025,21 @@ int main (int argc, char **argv)
     MPI_Barrier(MPI_COMM_WORLD);
 
     if (debug != 0)
+    {
+        if (myRank == 0)
+            cout << "> Number of proc = " << nProc << endl;
         testFunc(N, haloOpt, sHaloOpt, rows, haloOptSize, rowsSize, haloRedSize, myRank, nProc, A, BB);
+    }
     else
     {
         omp_set_num_threads(atoi(argv[6]));
         // 5 dot 6 axpby 4 spmv N diag
         long double operations = 1e-9 * (5 * (2 * N) + 6 * (3 * N) + 4 * (2 * N * 7) + N) / nProc;
         if (myRank == 0)
+        {
             cout << "> Number of threads = " << atoi(argv[6]) << endl;
+            cout << "> Number of proc = " << nProc << endl;
+        }
         long double time = MPI_Wtime();
         int res = solve(N, A, BB, tol, maxit, debug, haloOpt, sHaloOpt, haloOptSize, rowsSize, haloRedSize, rows, myRank);
         time = MPI_Wtime() - time;
