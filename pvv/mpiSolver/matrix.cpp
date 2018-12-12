@@ -290,9 +290,13 @@ class Vector
             locSize = selfSize + haloSize;
             A = new double [locSize];
 
+            // #pragma omp parallel for
+            // for (int i = 0; i < locSize; i++)
+            //     A[i] = 0;
             #pragma omp parallel for
             for (int i = 0; i < selfSize; i++)
                 A[i] = sin(rows[i]);
+
         }
 
         Vector(const Vector &vec)
@@ -549,6 +553,17 @@ int solve(int N, Matrix &A, Vector &BB, double tol, int maxit, int debug, int **
     Vector PP(rowsSize, haloRedSize, rows), PP2(rowsSize, haloRedSize, rows),
     RR(rowsSize, haloRedSize, rows), RR2(rowsSize, haloRedSize, rows), TT(rowsSize, haloRedSize, rows),
     VV(rowsSize, haloRedSize, rows), SS(rowsSize, haloRedSize, rows), SS2(rowsSize, haloRedSize, rows);
+    // Vector PP(rowsSize, haloRedSize, rows);
+    // Vector RR(rowsSize, haloRedSize, rows);
+    // cout << "keklol" << endl;
+    // Vector RR2(rowsSize, haloRedSize, rows);
+    // Vector TT(rowsSize, haloRedSize, rows);
+    // Vector VV(rowsSize, haloRedSize, rows);
+    // Vector SS(rowsSize, haloRedSize, rows);
+    // Vector SS2(rowsSize, haloRedSize, rows);
+    // cout << "lol" << endl;
+    // Vector PP2(rowsSize, haloRedSize, rows);
+    // cout << "kek" << endl;
     double initres = 0.0, res = 0.0, mineps = 1e-15, eps = 0.0;
     double Rhoi_1 = 1.0, alphai = 1.0, wi = 1.0, betai_1 = 1.0, Rhoi_2 = 1.0, alphai_1 = 1.0, wi_1 = 1.0, RhoMin = 1e-60;
 
@@ -1024,6 +1039,54 @@ int main (int argc, char **argv)
 
     MPI_Barrier(MPI_COMM_WORLD);
 
+
+    if (debug == 2)
+    {
+        Vector testVec1(rowsSize, haloRedSize, rows), testVec2(rowsSize, haloRedSize, rows);
+
+        long double testTimeR = 0.0;
+        long double testTime = MPI_Wtime();
+        long double dotRes = dot(testVec1, testVec2);
+        testTime = MPI_Wtime() - testTime;
+        MPI_Reduce(&testTime, &testTimeR, 1, MPI_LONG_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+        if (myRank == 0)
+        {
+            cout << "> DOT = " << dotRes << endl;
+            cout << "> Time of DOT = " << testTimeR << endl;
+            cout << endl;
+        }
+        MPI_Barrier(MPI_COMM_WORLD);
+
+
+        testTime = MPI_Wtime();
+        axpby(testVec1, testVec2, 1.0, 2.0);
+        testTime = MPI_Wtime() - testTime;
+        MPI_Reduce(&testTime, &testTimeR, 1, MPI_LONG_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+        dotRes = dot(testVec1, testVec1);
+        if (myRank == 0)
+        {
+            cout << "> AXPBY L2 norm = " << sqrt(dotRes) << endl;
+            cout << "> Time of AXPBY = " << testTimeR << endl;
+            cout << endl;
+        }
+        MPI_Barrier(MPI_COMM_WORLD);
+
+
+        testTime = MPI_Wtime();
+        sync(testVec2, haloOpt, sHaloOpt, haloOptSize);
+        SpMV(A, testVec2, testVec1);
+        testTime = MPI_Wtime() - testTime;
+        MPI_Reduce(&testTime, &testTimeR, 1, MPI_LONG_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+        dotRes = dot(testVec1, testVec1);
+        if (myRank == 0)
+        {
+            cout << "> SpMV L2 norm = " << sqrt(dotRes) << endl;
+            cout << "> Time of SpMV + sync = " << testTimeR << endl;
+            cout << endl;
+        }
+        MPI_Barrier(MPI_COMM_WORLD);
+    }
+    else
     if (debug != 0)
     {
         if (myRank == 0)
@@ -1034,6 +1097,13 @@ int main (int argc, char **argv)
     {
         omp_set_num_threads(atoi(argv[6]));
         // 5 dot 6 axpby 4 spmv N diag
+        Vector PP(rowsSize, haloRedSize, rows);
+        Vector RR(rowsSize, haloRedSize, rows);
+        Vector RR2(rowsSize, haloRedSize, rows);
+        Vector TT(rowsSize, haloRedSize, rows);
+        Vector VV(rowsSize, haloRedSize, rows);
+        Vector SS(rowsSize, haloRedSize, rows);
+        Vector SS2(rowsSize, haloRedSize, rows);
         long double operations = 1e-9 * (5 * (2 * N) + 6 * (3 * N) + 4 * (2 * N * 7) + N) / nProc;
         if (myRank == 0)
         {
