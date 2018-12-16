@@ -152,6 +152,7 @@ class Matrix
 
         Matrix(const Matrix &mat, int k)
         {
+            sizeA = 0;
             for (int i = 0; i < mat.sizeIA - 1; i++)
                 if (mat.get(i, i) > 0.000001)
                     sizeA++;
