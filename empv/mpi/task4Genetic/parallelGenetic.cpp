@@ -150,8 +150,14 @@ void migrate(double *P, int m, int n, int s, int left, int right)
 {
     shuffle(P, m, n);
 
-    MPI_Sendrecv(P, s * n, MPI_DOUBLE, left, 0, P, s * n, MPI_DOUBLE, right, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    double *tmp = new double [s * n];
 
+    // MPI_Sendrecv(P, s * n, MPI_DOUBLE, left, 0, P, s * n, MPI_DOUBLE, right, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    MPI_Sendrecv(P, s * n, MPI_DOUBLE, left, 0, tmp, s * n, MPI_DOUBLE, right, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+    memcpy(P, tmp, s * n * sizeof(double));
+
+    delete [] tmp;
     return;
 }
 
@@ -202,7 +208,7 @@ int main(int argc, char** argv)
     int n = atoi(argv[1]); // gene size
     int m = atoi(argv[2]); // genome size
     int T = atoi(argv[3]); // iter num
-    int s = atoi(argv[4]); // megrate size
+    int s = atoi(argv[4]); // migrate size
     int k = atoi(argv[5]); // migrate iter
 
     srand(time(NULL) + myRank);
