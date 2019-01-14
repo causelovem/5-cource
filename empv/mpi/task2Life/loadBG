@@ -1,0 +1,21 @@
+mpisubmit.bg -n 2 -w 00:35:00 parallelLife -- 64 100;
+mpisubmit.bg -n 2 -w 00:35:00 parallelLife -- 128 100;
+mpisubmit.bg -n 2 -w 00:35:00 parallelLife -- 256 100;
+
+mpisubmit.bg -n 5 -w 00:35:00 parallelLife -- 32 100;
+mpisubmit.bg -n 5 -w 00:35:00 parallelLife -- 64 100;
+mpisubmit.bg -n 5 -w 00:35:00 parallelLife -- 128 100;
+
+mpisubmit.bg -n 17 -w 00:35:00 parallelLife -- 16 100;
+mpisubmit.bg -n 17 -w 00:35:00 parallelLife -- 32 100;
+mpisubmit.bg -n 17 -w 00:35:00 parallelLife -- 64 100;
+
+mpisubmit.bg -n 65 -w 00:15:00 parallelLife -- 8 100;
+mpisubmit.bg -n 65 -w 00:15:00 parallelLife -- 16 100;
+mpisubmit.bg -n 65 -w 00:15:00 parallelLife -- 32 100;
+
+mpisubmit.bg -n 257 -w 00:05:00 parallelLife -- 4 100;
+mpisubmit.bg -n 257 -w 00:05:00 parallelLife -- 8 100;
+mpisubmit.bg -n 257 -w 00:05:00 parallelLife -- 16 100;
+
+

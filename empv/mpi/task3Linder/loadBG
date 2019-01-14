@@ -1,0 +1,6 @@
+mpisubmit.bg -n 2 -w 00:35:00 parallelLinder -- 2000 20;
+mpisubmit.bg -n 4 -w 00:35:00 parallelLinder -- 2000 20;
+mpisubmit.bg -n 8 -w 00:35:00 parallelLinder -- 2000 20;
+mpisubmit.bg -n 16 -w 00:35:00 parallelLinder -- 2000 20;
+
+

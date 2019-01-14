@@ -49,7 +49,7 @@ string align_load(string w, int myRank, int nProc)
     MPI_Sendrecv(&c, 1, MPI_INT, next, 0, &prevC, 1, MPI_INT, prev, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
     char *prevW = new char [prevC];
-    MPI_Sendrecv(w.substr(myL - c, myL).c_str(), c, MPI_CHAR, next, 0, prevW, prevC, MPI_CHAR, prev, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    MPI_Sendrecv((void *)w.substr(myL - c, myL).c_str(), c, MPI_CHAR, next, 0, prevW, prevC, MPI_CHAR, prev, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     w = string(prevW, prevC) + w.substr(0, myL - c);
 
     myL = prevL = w.length();
@@ -59,7 +59,7 @@ string align_load(string w, int myRank, int nProc)
     MPI_Sendrecv(&c, 1, MPI_INT, prev, 0, &nextC, 1, MPI_INT, next, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
     char *nextW = new char [nextC];
-    MPI_Sendrecv(w.substr(0, c).c_str(), c, MPI_CHAR, prev, 0, nextW, nextC, MPI_CHAR, next, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    MPI_Sendrecv((void *)w.substr(0, c).c_str(), c, MPI_CHAR, prev, 0, nextW, nextC, MPI_CHAR, next, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     w = w.substr(c, myL) + string(nextW, nextC);
 
     delete[] prevW;
@@ -77,8 +77,8 @@ void run_lsystem(int T, int k, int myRank, int nProc)
 
     map< char, pair<string, double> > RR;
 
-    RR['a'] = make_pair("b", 1);
-    RR['b'] = make_pair("ab", 1);
+    // RR['a'] = make_pair("b", 1);
+    // RR['b'] = make_pair("ab", 1);
 
     // RR['a'] = make_pair("ab", 1);
     // RR['b'] = make_pair("bc", 1);
@@ -86,8 +86,8 @@ void run_lsystem(int T, int k, int myRank, int nProc)
 
     // RR['a'] = make_pair("aa", 0.001);
 
-    // RR['a'] = make_pair("ab", 0.01);
-    // RR['b'] = make_pair("a", 0.01);
+    RR['a'] = make_pair("ab", 0.01);
+    RR['b'] = make_pair("a", 0.01);
 
     int center = nProc / 2;
     if (myRank == center)
@@ -132,9 +132,9 @@ void run_lsystem(int T, int k, int myRank, int nProc)
             MPI_Recv(allLoad[i], lsize, MPI_INT, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         }
 
-        ofstream fo("output.dat");
-        fo << data << endl;
-        fo.close();
+        // ofstream fo("output.dat");
+        // fo << data << endl;
+        // fo.close();
 
         ofstream fs("stat.dat", fstream::app);
 
@@ -167,7 +167,7 @@ void run_lsystem(int T, int k, int myRank, int nProc)
     {
         int len = data.length();
         MPI_Send(&len, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
-        MPI_Send(data.c_str(), data.length(), MPI_CHAR, 0, 0, MPI_COMM_WORLD);
+        MPI_Send((void *)data.c_str(), data.length(), MPI_CHAR, 0, 0, MPI_COMM_WORLD);
 
         MPI_Send(load, lsize, MPI_INT, 0, 0, MPI_COMM_WORLD);
     }

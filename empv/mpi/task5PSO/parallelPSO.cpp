@@ -25,13 +25,17 @@ double F(double* x, int n) // сферическая функция
 {
     double s = 0.0;
 
-    // sphere
-    for( int i = 0; i < n; i++ )
-        s += x[i] * x[i];
+    // // sphere
+    // for( int i = 0; i < n; i++ )
+    //     s += x[i] * x[i];
 
     // // Rosenbrok
     // for( int i = 0; i < n - 1; i++ )
     //     s += 100 * (x[i] * x[i] - x[i + 1]) * (x[i] * x[i] - x[i + 1]) + (x[i] - 1) * (x[i] - 1);
+
+    // Rastring
+    for( int i = 0; i < n; i++ )
+        s += x[i] * x[i] - 10 * cos(2 * 3.14159265 * x[i]) + 10;
 
     return s;
 }
@@ -181,7 +185,7 @@ void run_psoa(int n, int m, int T, int s, int kk, int myRank, int nProc)
     print_all(fout, x, n, m);
 
     // main loop
-    fbest = synchronizePSO(g, n, myRank, nProc);
+    // fbest = synchronizePSO(g, n, myRank, nProc);
     long double time = MPI_Wtime();
     k0 = 0;
     for( int t = 1; t <= T; t++ )
@@ -201,18 +205,18 @@ void run_psoa(int n, int m, int T, int s, int kk, int myRank, int nProc)
         }
         copy_data(x + n * k0, n, g);
 
-        fbest = synchronizePSO(g, n, myRank, nProc);
-        // if (t % kk == 0)
-        //     migrate(x, v, p, m, n, s, left, right);
+        // fbest = synchronizePSO(g, n, myRank, nProc);
+        if (t % kk == 0)
+            migrate(x, v, p, m, n, s, left, right);
 
-        // double fbestall = 0;
-        // MPI_Reduce(&fbest, &fbestall, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
+        double fbestall = 0;
+        MPI_Reduce(&fbest, &fbestall, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
         if (myRank == 0)
             if( t % dt == 0 )
             {
-                print_best(g, fbest, n, t);
-                // print_best(g, fbestall, n, t); 
-                print_all(fout, x, n, m);
+                // print_best(g, fbest, n, t);
+                print_best(g, fbestall, n, t); 
+                // print_all(fout, x, n, m);
             }
     }
     time = MPI_Wtime() - time;

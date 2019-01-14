@@ -1,0 +1,1 @@
+mpisubmit.bg -n 4 -w 00:35:00 parallelPSO -- 5 50 200 10 20;

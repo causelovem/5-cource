@@ -19,13 +19,13 @@ double eval(double* a, int n)
     // for( int i = 0; i < n; i++ )
     //     sum += a[i] * a[i];
 
-    // Rosenbrok
-    for( int i = 0; i < n - 1; i++ )
-        sum += 100 * (a[i] * a[i] - a[i + 1]) * (a[i] * a[i] - a[i + 1]) + (a[i] - 1) * (a[i] - 1);
+    // // Rosenbrok
+    // for( int i = 0; i < n - 1; i++ )
+    //     sum += 100 * (a[i] * a[i] - a[i + 1]) * (a[i] * a[i] - a[i + 1]) + (a[i] - 1) * (a[i] - 1);
 
-    // // Rastring
-    // for( int i = 0; i < n; i++ )
-    //     sum += a[i] * a[i] - 10 * cos(2 * 3.14159265 * a[i]) + 10;
+    // Rastring
+    for( int i = 0; i < n; i++ )
+        sum += a[i] * a[i] - 10 * cos(2 * 3.14159265 * a[i]) + 10;
 
     return sum;
 }
