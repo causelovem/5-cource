@@ -34,43 +34,24 @@ def findMinEdge(edge1 : Edge[Double], edge2 : Edge[Double]) : Edge[Double] =
         edge2
 }
 
-// def findMinEdge(edge1 : (Long, Edge[Double]), edge2 : (Long, Edge[Double])) : (Long, Edge[Double]) =
-// {
-//     val nedge1 = edge1._2
-//     val nedge2 = edge2._2
-//     if(nedge1.attr < nedge2.attr) (edge1._1, nedge1)
-//     else if (nedge1.attr == nedge2.attr)
-//     {
-//         if(nedge1.srcId < nedge2.srcId) (edge1._1, nedge1)
-//         else if(nedge1.srcId == nedge2.srcId)
-//         {
-//             if(nedge1.dstId < nedge2.dstId) (edge1._1, nedge1)
-//             else (edge2._1, nedge2)
-            
-//         }
-//         else (edge2._1, nedge2)
-//     }
-//     else
-//         (edge2._1, nedge2)
-// }
-// val minEdges = verts.join(unionEdges).reduceByKey((a, b) => findMinEdge(a, b))
-
 
 def run(graph: Graph[Long,Double]) : Graph[Long,Double] =
 {
-    val emptyEdges = graph.edges.filter(edge => edge.srcId == -1)
+    var emptyEdges = graph.edges.filter(edge => edge.srcId == -1)
 
     val keyGenEdges = graph.edges.map( edge => (edge.srcId, edge))
     val opositKeyGenEdges = graph.edges.map( edge => (edge.dstId, edge))
     var unionEdges = keyGenEdges union opositKeyGenEdges
 
+    // val keyGenEdges = remainingEdges2.map( edge => (edge.srcId, edge))
+    // val opositKeyGenEdges = remainingEdges2.map( edge => (edge.dstId, edge))
+    // var unionEdges = keyGenEdges union opositKeyGenEdges
+
     var verts = graph.vertices
 
     // while ...
-    // val minEdges = verts.join(unionEdges).map{case (vKey, (vGrp, edge)) => (vKey, edge)}.reduceByKey((edge1, edge2) => findMinEdge(edge1, edge2))
-    val minEdges1 = verts.join(unionEdges).map{case (vKey, (vGrp, edge)) => (vGrp, edge)}.reduceByKey((edge1, edge2) => findMinEdge(edge1, edge2))
-    // val minEdgesDistinct = minEdges.values.distinct
-    val minEdgesDistinct = minEdges1.values.distinct
+    val minEdges = verts.join(unionEdges).map{case (vKey, (vGrp, edge)) => (vGrp, edge)}.reduceByKey((edge1, edge2) => findMinEdge(edge1, edge2))
+    val minEdgesDistinct = minEdges.values.distinct
     val unionMinEdges = minEdgesDistinct.map(edge => (edge.srcId, edge.dstId)) union minEdgesDistinct.map(edge => (edge.dstId, edge.srcId))
     // val unionMinEdges = unionMinEdges.distinct
 
@@ -84,12 +65,15 @@ def run(graph: Graph[Long,Double]) : Graph[Long,Double] =
         val newVerts = verts.join(newGrp2).map{case (vertID, (oldGrp, newGrp)) => (vertID, newGrp)}
         check = verts.join(newVerts).filter{case (vert, (oldGrp, newGrp)) => oldGrp != newGrp}.count
         println(check)
-        verts = VertexRDD(newVerts)
+        verts = VertexRDD(verts.subtractByKey(newVerts) union newVerts)
     }
     verts.collect
-    unionEdges = unionEdges.subtract(minEdges1)
-    
-    unionEdges.values.distinct.map(edge => (edge.srcId, edge)).join(verts).map{case (vertID, (edge, gr)) => (edge.dstId, (edge, gr))}.join(verts).map{case (vertID, ((edge, gr1), gr2)) => (edge, gr1, gr2)}.filter{case (edge, gr1, gr2) => gr1 != gr2}.map{case (edge, gr1, gr2) => edge}
+    emptyEdges = emptyEdges ++ minEdgesDistinct
+    unionEdges = unionEdges.subtract(minEdges)
+
+    val remainingEdges = unionEdges.values.distinct.map(edge => (edge.srcId, edge)).join(verts).map{case (vertID, (edge, gr)) => (edge.dstId, (edge, gr))}
+    val remainingEdges1 = remainingEdges.join(verts).map{case (vertID, ((edge, gr1), gr2)) => (edge, gr1, gr2)}
+    val remainingEdges2 = remainingEdges1.filter{case (edge, gr1, gr2) => gr1 != gr2}.map{case (edge, gr1, gr2) => edge}
     // unionEdges.join(verts).map{case (vertID, (edge, gr)) => (edge.dstId, (edge, gr))}.join(verts).map{case (vertID, ((edge, gr1), gr2)) => (edge, gr1, gr2)}.filter{case (edge, gr1, gr2) => gr1 != gr2}.map{case (edge, gr1, gr2) => edge}
 }
 
