@@ -301,7 +301,7 @@ int main (int argc, char** argv)
     graph_t g;
     init(argc, argv, &g);
     gen_RMAT_graph(&g);
-    //printGraph(&g);
+    printGraph(&g);
     writeBinaryGraph(&g, outFilename);
     
     return 0;

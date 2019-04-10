@@ -44,15 +44,24 @@ def findMinEdge(edge1: Edge[Double], edge2: Edge[Double]): Edge[Double] =
 // build mst with Boruvka's algorithm
 def buildMst(graph: Graph[Long,Double]): Graph[Long,Double] =
 {
+    // clear graph from multi edges: take min on them
+    val clearGraph = graph.groupEdges((attr1, attr2) => math.min(attr1, attr2))
+
+    // println(graph.numEdges)
+    // println(clearGraph.numEdges)
+
     // empty set from final edges
-    var finalEdges = graph.edges.filter(edge => edge.srcId == -1)
+    var finalEdges = clearGraph.edges.filter(edge => edge.srcId == -1)
 
     // vertices and edges to process
-    var verts = graph.vertices
-    var remainingEdges = graph.edges
+    var verts = clearGraph.vertices
+    // clear edges from loop edges
+    var remainingEdges = clearGraph.edges.filter(edge => edge.srcId != edge.dstId)
 
+    val start = System.nanoTime
     // number of remaining edges
     var remainingEdgesCount = remainingEdges.count
+    println("remainingEdgesCount = " + remainingEdgesCount)
     while (remainingEdgesCount != 0)
     {
         // retrieve key (src) for join from edge
@@ -88,8 +97,8 @@ def buildMst(graph: Graph[Long,Double]): Graph[Long,Double] =
             // set new group to vertices
             val newVerts = verts.map{case (vertID, grp) => (grp, vertID)}.join(grpToChange).filter{case (oldGrp, (vertID, newGrp)) => oldGrp != newGrp}.map{case (oldGrp, (vertID, newGrp)) => (vertID, newGrp)}
             // count changed vertices
-            vertsToChangeCount = verts.join(newVerts).filter{case (vert, (oldGrp, newGrp)) => oldGrp != newGrp}.count
-            // println(vertsToChangeCount)
+            vertsToChangeCount = newVerts.count
+            println("vertsToChangeCount = " + vertsToChangeCount)
 
             // update vertices RDD with vertices with new groups
             verts = VertexRDD(verts.subtractByKey(newVerts) union newVerts)
@@ -112,34 +121,41 @@ def buildMst(graph: Graph[Long,Double]): Graph[Long,Double] =
         remainingEdges = EdgeRDD.fromEdges(preRemainingEdges)
         // count remaining edges
         remainingEdgesCount = remainingEdges.count
-        // unionEdges.join(verts).map{case (vertID, (edge, gr)) => (edge.dstId, (edge, gr))}.join(verts).map{case (vertID, ((edge, gr1), gr2)) => (edge, gr1, gr2)}.filter{case (edge, gr1, gr2) => gr1 != gr2}.map{case (edge, gr1, gr2) => edge}
+        println("remainingEdgesCount = " + remainingEdgesCount)
     }
+    val end = (System.nanoTime - start) / 1e9d
+    println("Computational time = " + end)
     // finalEdges.collect
     // verts.collect
     return Graph(verts, finalEdges)
 }
 
 // read file with graph
-val file = sc.textFile("/mnt/f/prog/5-course/graph/test_graph_not_binary_1");
+// val file = sc.textFile("/mnt/f/prog/5-course/graph/test_graph_not_binary_1")
+val file = sc.textFile("/mnt/f/prog/5-course/graph/test_test")
 // make edges and vertices from file
 val edgesForGraph = file.flatMap(line => makeEdges(line))
 val vertsForGraph = file.flatMap(line => Array((line.split(":")(0).toLong, line.split(":")(0).toLong)))
-// val graph = Graph(vertsForGraph, edgesForGraph)
-// val graph = Graph(vertsForGraph, edgesForGraph).partitionBy(PartitionStrategy.RandomVertexCut)
 
 // make graph
 val vertsForGraphVR: VertexRDD[Long] = VertexRDD(vertsForGraph)
 val edgesForGraphER: EdgeRDD[Double] = EdgeRDD.fromEdges(edgesForGraph)
 val graph = Graph(vertsForGraphVR, edgesForGraphER).partitionBy(PartitionStrategy.RandomVertexCut)
+// CanonicalRandomVertexCut, EdgePartition1D, EdgePartition2D, RandomVertexCut
 
 // build mst from graph
+val start = System.nanoTime
+
 val mst = buildMst(graph)
 
+val end = (System.nanoTime - start) / 1e9d
+// end
+
 // mst info
-mst.vertices.count
-mst.edges.count
+mst.numVertices
+mst.numEdges
 val finalWeight = mst.edges.map(edge => edge.attr).sum
-finalWeight
+// finalWeight
 
 
 // graph.triplets.collect.foreach(println)

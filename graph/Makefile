@@ -1,7 +1,8 @@
 # defines
 CC=gcc
 MPICC=mpicc
-CXX=icpc
+# CXX=icpc
+CXX=g++
 MPICXX=mpicxx
 CFLAGS= -O3 -Wall -std=gnu99 -openmp 
 CXXFLAGS= -O3 -Wall 

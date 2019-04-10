@@ -225,6 +225,8 @@ extern "C" void validation(forest_t *trees, graph_t *G)
             }
         }
     }
+    for (vertex_id_t i = 0; i < trees->numTrees; i++)
+        printf("weight of %d tree. Result: %.4f Valid: %.4f\n", i, sum_weight_trees[i], valid_weight_trees[i]);    
     free(sum_weight_trees);
     free(marked_vert_in_forest);
     free(startV);
