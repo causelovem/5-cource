@@ -74,25 +74,16 @@ def buildMst(graph: Graph[Long,Double]): Graph[Long,Double] =
         // val minEdges = unionEdges.join(verts).map{case (vertID, (edge, grp)) => (grp, edge)}.reduceByKey((edge1, edge2) => findMinEdge(edge1, edge2))
         val minEdges = verts.join(unionEdges).map{case (vertID, (grp, edge)) => (grp, edge)}.reduceByKey((edge1, edge2) => findMinEdge(edge1, edge2))
         val minEdgesDistinct = minEdges.values.distinct
-        // take away attr of edge
-        val unionMinEdges = minEdgesDistinct.map(edge => (edge.srcId, edge.dstId)) union minEdgesDistinct.map(edge => (edge.dstId, edge.srcId))
-        // val unionMinEdges = unionMinEdges.distinct
 
-        // pre join date: make pairs of src and min (max) of src and dst
-        // second one will be used as key for reduce
-        val preJoinEdges = unionMinEdges.map{case (s, d) => (s, math.min(s, d))} union unionMinEdges.map{case (s, d) => (s, math.max(s, d))}
         // number of vertices to change
         var vertsToChangeCount = 1L
+
         // update vertices group
         while (vertsToChangeCount != 0)
         {
-            // vertices, which are src or dst of min edges
-            val affectedVerts = verts.join(preJoinEdges).map{case (key, (grp, vertID)) => (vertID, grp)}
-            // group by key (vertexId) and take minimal group
-            // val affectedVertsMinGrp = affectedVerts.distinct.reduceByKey((grp1, grp2) => math.min(grp1, grp2))
-            val affectedVertsMinGrp = affectedVerts.reduceByKey((grp1, grp2) => math.min(grp1, grp2))
-            // make pairs of oldGroup and newGroup: need to change oldGroup to newGroup
-            val grpToChange = verts.join(affectedVertsMinGrp).map{case (vertID, (oldGrp, newGrp)) => (oldGrp, newGrp)}.filter{case (oldGrp, newGrp) => oldGrp != newGrp}
+            val vertsWithSrcGrp = VertexRDD(minEdgesDistinct.map(edge => (edge.srcId, edge.dstId)).join(verts).map{case (vertID, (dstId, srcGrp)) => (dstId, srcGrp)})
+            // retrieve also group of dst vertex of edge
+            val grpToChange = vertsWithSrcGrp.join(verts).map{case (vertID, (srcGrp, dstGrp)) => (math.max(srcGrp, dstGrp), math.min(srcGrp, dstGrp))}.filter{case (oldGrp, newGrp) => oldGrp != newGrp}.reduceByKey((grp1, grp2) => math.min(grp1, grp2))
             println(grpToChange.take(50).toList)
             // make vertices with updated group:
             // "reverse" vertex to make group as a key
