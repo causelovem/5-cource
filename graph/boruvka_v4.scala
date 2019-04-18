@@ -45,7 +45,7 @@ def findMinEdge(edge1: Edge[Double], edge2: Edge[Double]): Edge[Double] =
 def buildMst(graph: Graph[Long,Double]): Graph[Long,Double] =
 {
     // clear graph from multi edges: take min on them
-    val clearGraph = graph.groupEdges((attr1, attr2) => math.min(attr1, attr2))
+    val clearGraph = graph.groupEdges((attr1, attr2) => math.min(attr1, attr2)).cache()
 
     // println(graph.numEdges)
     // println(clearGraph.numEdges)
@@ -54,9 +54,9 @@ def buildMst(graph: Graph[Long,Double]): Graph[Long,Double] =
     var finalEdges = clearGraph.edges.filter(edge => edge.srcId == -1)
 
     // vertices and edges to process
-    var verts = clearGraph.vertices
+    var verts = clearGraph.vertices.cache()
     // clear edges from loop edges
-    var remainingEdges = clearGraph.edges.filter(edge => edge.srcId != edge.dstId)
+    var remainingEdges = clearGraph.edges.filter(edge => edge.srcId != edge.dstId).cache()
 
     val start = System.nanoTime
     // number of remaining edges
@@ -73,46 +73,27 @@ def buildMst(graph: Graph[Long,Double]): Graph[Long,Double] =
         // find min edges
         // val minEdges = unionEdges.join(verts).map{case (vertID, (edge, grp)) => (grp, edge)}.reduceByKey((edge1, edge2) => findMinEdge(edge1, edge2))
         val minEdges = verts.join(unionEdges).map{case (vertID, (grp, edge)) => (grp, edge)}.reduceByKey((edge1, edge2) => findMinEdge(edge1, edge2))
-        val minEdgesDistinct = minEdges.values.distinct
+        // val minEdges = verts.join(keyGenEdges).map{case (vertID, (grp, edge)) => (grp, edge)}.reduceByKey((edge1, edge2) => findMinEdge(edge1, edge2)).map{case (grp, edge) => (math.min(edge.srcId, edge.dstId), edge)}.reduceByKey((edge1, edge2) => findMinEdge(edge1, edge2))
+        val minEdgesDistinct = EdgeRDD.fromEdges(minEdges.values.distinct)
 
-        // number of vertices to change
-        var vertsToChangeCount = 1L
-
-        // update vertices group
-        while (vertsToChangeCount != 0)
-        {
-            val vertsWithSrcGrp = minEdgesDistinct.map(edge => (edge.srcId, edge.dstId)).join(verts).map{case (vertID, (dstId, srcGrp)) => (dstId, srcGrp)}
-            // retrieve also group of dst vertex of edge
-            val grpToChange = vertsWithSrcGrp.join(verts).map{case (vertID, (srcGrp, dstGrp)) => (math.max(srcGrp, dstGrp), math.min(srcGrp, dstGrp))}.filter{case (oldGrp, newGrp) => oldGrp != newGrp}.reduceByKey((grp1, grp2) => math.min(grp1, grp2))
-            println(grpToChange.take(50).toList)
-            // make vertices with updated group:
-            // "reverse" vertex to make group as a key
-            // join to grpToChange and take vertices with changed group
-            // set new group to vertices
-            val newVerts = verts.map{case (vertID, grp) => (grp, vertID)}.join(grpToChange).map{case (oldGrp, (vertID, newGrp)) => (vertID, newGrp)}
-            // count changed vertices
-            vertsToChangeCount = newVerts.count
-            println("vertsToChangeCount = " + vertsToChangeCount)
-
-            // update vertices RDD with vertices with new groups
-            verts = VertexRDD(verts.subtractByKey(newVerts) union newVerts)
-        }
-        // verts.collect
-
-        // add min edges to final edges
         finalEdges = finalEdges ++ minEdgesDistinct
+        verts = Graph(verts, finalEdges).connectedComponents().vertices.cache()
+        println(verts.collect.toList)
 
         // subtract min edges from all edges
-        // unionEdges = unionEdges.subtract(minEdges)
+
+        // remainingEdges = remainingEdges.subtract(minEdgesDistinct)
+
         // retrieve group of src vertex of edge
-        val edgesWithSrcGrp = unionEdges.values.distinct.map(edge => (edge.srcId, edge)).join(verts).map{case (vertID, (edge, grp)) => (edge.dstId, (edge, grp))}
+        val edgesWithSrcGrp = remainingEdges.map(edge => (edge.srcId, edge)).join(verts).map{case (vertID, (edge, grp)) => (edge.dstId, (edge, grp))}
         // retrieve also group of dst vertex of edge
         val edgesWithSrcAndDstGrp = edgesWithSrcGrp.join(verts).map{case (vertID, ((edge, grp1), grp2)) => (edge, grp1, grp2)}
         // take edges which are not in the same group
         val preRemainingEdges = edgesWithSrcAndDstGrp.filter{case (edge, grp1, grp2) => grp1 != grp2}.map{case (edge, grp1, grp2) => edge}
         
         // remaining edges to process
-        remainingEdges = EdgeRDD.fromEdges(preRemainingEdges)
+        // remainingEdges = EdgeRDD.fromEdges(preRemainingEdges)
+        remainingEdges = preRemainingEdges.cache()
         // count remaining edges
         remainingEdgesCount = remainingEdges.count
         println("remainingEdgesCount = " + remainingEdgesCount)

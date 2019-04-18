@@ -75,35 +75,12 @@ def buildMst(graph: Graph[Long,Double]): Graph[Long,Double] =
         val minEdges = verts.join(unionEdges).map{case (vertID, (grp, edge)) => (grp, edge)}.reduceByKey((edge1, edge2) => findMinEdge(edge1, edge2))
         val minEdgesDistinct = minEdges.values.distinct
 
-        // number of vertices to change
-        var vertsToChangeCount = 1L
-
-        // update vertices group
-        while (vertsToChangeCount != 0)
-        {
-            val vertsWithSrcGrp = VertexRDD(minEdgesDistinct.map(edge => (edge.srcId, edge.dstId)).join(verts).map{case (vertID, (dstId, srcGrp)) => (dstId, srcGrp)})
-            // retrieve also group of dst vertex of edge
-            val grpToChange = vertsWithSrcGrp.join(verts).map{case (vertID, (srcGrp, dstGrp)) => (math.max(srcGrp, dstGrp), math.min(srcGrp, dstGrp))}.filter{case (oldGrp, newGrp) => oldGrp != newGrp}.reduceByKey((grp1, grp2) => math.min(grp1, grp2))
-            println(grpToChange.take(50).toList)
-            // make vertices with updated group:
-            // "reverse" vertex to make group as a key
-            // join to grpToChange and take vertices with changed group
-            // set new group to vertices
-            val newVerts = verts.map{case (vertID, grp) => (grp, vertID)}.join(grpToChange).filter{case (oldGrp, (vertID, newGrp)) => oldGrp != newGrp}.map{case (oldGrp, (vertID, newGrp)) => (vertID, newGrp)}
-            // count changed vertices
-            vertsToChangeCount = newVerts.count
-            println("vertsToChangeCount = " + vertsToChangeCount)
-
-            // update vertices RDD with vertices with new groups
-            verts = VertexRDD(verts.subtractByKey(newVerts) union newVerts)
-        }
-        // verts.collect
-
-        // add min edges to final edges
         finalEdges = finalEdges ++ minEdgesDistinct
+        verts = Graph(verts, finalEdges).connectedComponents().vertices
+        println(verts.collect.toList)
 
         // subtract min edges from all edges
-        unionEdges = unionEdges.subtract(minEdges)
+        // unionEdges = unionEdges.subtract(minEdges)
         // retrieve group of src vertex of edge
         val edgesWithSrcGrp = unionEdges.values.distinct.map(edge => (edge.srcId, edge)).join(verts).map{case (vertID, (edge, grp)) => (edge.dstId, (edge, grp))}
         // retrieve also group of dst vertex of edge
