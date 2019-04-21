@@ -77,7 +77,7 @@ def buildMst(graph: Graph[Long,Double]): Graph[Long,Double] =
 
         finalEdges = finalEdges ++ minEdgesDistinct
         verts = Graph(verts, finalEdges).connectedComponents().vertices
-        println(verts.collect.toList)
+        // println(verts.collect.toList)
 
         // subtract min edges from all edges
         // unionEdges = unionEdges.subtract(minEdges)

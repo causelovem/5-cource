@@ -93,7 +93,7 @@ def buildMst(graph: Graph[Long,Double]): Graph[Long,Double] =
             val affectedVertsMinGrp = affectedVerts.reduceByKey((grp1, grp2) => math.min(grp1, grp2))
             // make pairs of oldGroup and newGroup: need to change oldGroup to newGroup
             val grpToChange = verts.join(affectedVertsMinGrp).map{case (vertID, (oldGrp, newGrp)) => (oldGrp, newGrp)}.filter{case (oldGrp, newGrp) => oldGrp != newGrp}.reduceByKey((grp1, grp2) => math.min(grp1, grp2))
-            println(grpToChange.take(50).toList)
+            // println(grpToChange.take(50).toList)
             // make vertices with updated group:
             // "reverse" vertex to make group as a key
             // join to grpToChange and take vertices with changed group

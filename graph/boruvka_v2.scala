@@ -84,7 +84,7 @@ def buildMst(graph: Graph[Long,Double]): Graph[Long,Double] =
             val vertsWithSrcGrp = minEdgesDistinct.map(edge => (edge.srcId, edge.dstId)).join(verts).map{case (vertID, (dstId, srcGrp)) => (dstId, srcGrp)}
             // retrieve also group of dst vertex of edge
             val grpToChange = vertsWithSrcGrp.join(verts).map{case (vertID, (srcGrp, dstGrp)) => (math.max(srcGrp, dstGrp), math.min(srcGrp, dstGrp))}.filter{case (oldGrp, newGrp) => oldGrp != newGrp}.reduceByKey((grp1, grp2) => math.min(grp1, grp2))
-            println(grpToChange.take(50).toList)
+            // println(grpToChange.take(50).toList)
             // make vertices with updated group:
             // "reverse" vertex to make group as a key
             // join to grpToChange and take vertices with changed group

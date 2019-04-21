@@ -73,15 +73,16 @@ def buildMst(graph: Graph[Long,Double]): Graph[Long,Double] =
         // find min edges
         // val minEdges = unionEdges.join(verts).map{case (vertID, (edge, grp)) => (grp, edge)}.reduceByKey((edge1, edge2) => findMinEdge(edge1, edge2))
         val minEdges = verts.join(unionEdges).map{case (vertID, (grp, edge)) => (grp, edge)}.reduceByKey((edge1, edge2) => findMinEdge(edge1, edge2))
-        // val minEdges = verts.join(keyGenEdges).map{case (vertID, (grp, edge)) => (grp, edge)}.reduceByKey((edge1, edge2) => findMinEdge(edge1, edge2)).map{case (grp, edge) => (math.min(edge.srcId, edge.dstId), edge)}.reduceByKey((edge1, edge2) => findMinEdge(edge1, edge2))
+        // val minEdgesDistinct = minEdges.values.distinct
         val minEdgesDistinct = EdgeRDD.fromEdges(minEdges.values.distinct)
 
+        // add min edges to final edges
         finalEdges = finalEdges ++ minEdgesDistinct
+        // update vertices group
         verts = Graph(verts, finalEdges).connectedComponents().vertices.cache()
-        println(verts.collect.toList)
+        // println(verts.collect.toList)
 
         // subtract min edges from all edges
-
         // remainingEdges = remainingEdges.subtract(minEdgesDistinct)
 
         // retrieve group of src vertex of edge
@@ -107,8 +108,9 @@ def buildMst(graph: Graph[Long,Double]): Graph[Long,Double] =
 
 // read file with graph
 // val file = sc.textFile("/mnt/f/prog/5-course/graph/test_graph_not_binary_1")
-// val file = sc.textFile("/mnt/f/prog/5-course/graph/test_test")
-val file = sc.textFile("/mnt/d/prog/5-course/graph/test_test")
+val file = sc.textFile("/mnt/f/prog/5-course/graph/test_test")
+// val file = sc.textFile("/mnt/d/prog/5-course/graph/test_test")
+
 // make edges and vertices from file
 val edgesForGraph = file.flatMap(line => makeEdges(line))
 val vertsForGraph = file.flatMap(line => Array((line.split(":")(0).toLong, line.split(":")(0).toLong)))
