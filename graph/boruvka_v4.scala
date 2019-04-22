@@ -108,8 +108,8 @@ def buildMst(graph: Graph[Long,Double]): Graph[Long,Double] =
 
 // read file with graph
 // val file = sc.textFile("/mnt/f/prog/5-course/graph/test_graph_not_binary_1")
-val file = sc.textFile("/mnt/f/prog/5-course/graph/test_test")
-// val file = sc.textFile("/mnt/d/prog/5-course/graph/test_test")
+// val file = sc.textFile("/mnt/f/prog/5-course/graph/test_test")
+val file = sc.textFile("/mnt/d/prog/5-course/graph/test_test")
 
 // make edges and vertices from file
 val edgesForGraph = file.flatMap(line => makeEdges(line))
