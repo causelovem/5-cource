@@ -3,6 +3,10 @@ import org.apache.spark.graphx._
 import org.apache.spark.rdd.RDD
 import scala.collection.mutable.ListBuffer
 
+
+val conf = new SparkConf().setAppName("boruvka").setMaster("local")
+new SparkContext(conf)
+
 // make edges from string from file
 def makeEdges(line: String): Array[Edge[Double]] =
 {
