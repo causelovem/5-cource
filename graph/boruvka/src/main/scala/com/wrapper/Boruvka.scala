@@ -73,7 +73,7 @@ object BoruvkaAlgorithm
     def buildMst(graph: Graph[Long,Double]): Graph[Long,Double] =
     {
         // clear graph from multi edges: take min on them
-        val clearGraph = graph.groupEdges((attr1, attr2) => math.min(attr1, attr2)).cache()
+        val clearGraph = graph.groupEdges((attr1, attr2) => math.min(attr1, attr2))
 
         // println(graph.numEdges)
         // println(clearGraph.numEdges)
@@ -82,9 +82,9 @@ object BoruvkaAlgorithm
         var finalEdges = clearGraph.edges.filter(edge => edge.srcId == -1)
 
         // vertices and edges to process
-        var verts = clearGraph.vertices.cache()
+        var verts = clearGraph.vertices
         // clear edges from loop edges
-        var remainingEdges = clearGraph.edges.filter(edge => edge.srcId != edge.dstId).cache()
+        var remainingEdges = clearGraph.edges.filter(edge => edge.srcId != edge.dstId)
 
         val start = System.nanoTime
         // number of remaining edges

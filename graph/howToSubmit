@@ -6,10 +6,10 @@ sbatch -p test -n 9 --ntasks-per-node 1 --output=test8.out run ./start.py 192 64
 sbatch -p test -n 17 --ntasks-per-node 1 --output=test16.out run ./start.py 192 128 6 15GB
 sbatch -p test -n 33 --ntasks-per-node 1 --output=test32.out run ./start.py 192 256 6 15GB
 
-sbatch -p test -n 2 --ntasks-per-node 1 --output=test1.out run ./start.py 15 5 5 10GB
-sbatch -p test -n 3 --ntasks-per-node 1 --output=test2.out run ./start.py 30 10 5 10GB
-sbatch -p test -n 5 --ntasks-per-node 1 --output=test4.out run ./start.py 60 20 5 10GB
-sbatch -p test -n 9 --ntasks-per-node 1 --output=test8.out run ./start.py 135 45 5 10GB
+sbatch -p test -n 2 --ntasks-per-node 1 --output=test1.out run ./start.py 15 4 6 14GB
+sbatch -p test -n 3 --ntasks-per-node 1 --output=test2.out run ./start.py 30 8 6 14GB
+sbatch -p test -n 5 --ntasks-per-node 1 --output=test4.out run ./start.py 60 16 6 14GB
+sbatch -p test -n 9 --ntasks-per-node 1 --output=test8.out run ./start.py 135 32 6 14GB
 sbatch -p test -n 17 --ntasks-per-node 1 --output=test16.out run ./start.py 320 320 5 59GB
 sbatch -p test -n 33 --ntasks-per-node 1 --output=test32.out run ./start.py 640 640 5 59GB
 
