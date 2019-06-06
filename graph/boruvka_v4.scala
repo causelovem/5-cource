@@ -22,10 +22,14 @@ object BoruvkaAlgorithm
         // src of edge
         val origin = fields(0)
         // dst of edge
-        val others = fields(1).replace("(", "").replace(")", "").split(", ")
+        var others: Array[String] = null
+        if (fields.length == 2)
+            others = fields(1).replace("(", "").replace(")", "").split(", ")
+        else
+            others = Array(fields(0).toString + " " + fields(0).toString)
         // collect all edges in list
         others.foreach { item => edges += Edge(origin.toLong, item.split(" ")(0).toLong, item.split(" ")(1).toDouble) }
-        
+
         return edges.toArray
     }
 

@@ -1,0 +1,34 @@
+
+sbatch -p test -n 2 --ntasks-per-node 1 --output=test1.out run ./start.py 192 4 6 15GB
+sbatch -p test -n 3 --ntasks-per-node 1 --output=test2.out run ./start.py 192 8 6 15GB
+sbatch -p test -n 5 --ntasks-per-node 1 --output=test4.out run ./start.py 192 32 6 15GB
+sbatch -p test -n 9 --ntasks-per-node 1 --output=test8.out run ./start.py 192 64 6 15GB
+sbatch -p test -n 17 --ntasks-per-node 1 --output=test16.out run ./start.py 192 128 6 15GB
+sbatch -p test -n 33 --ntasks-per-node 1 --output=test32.out run ./start.py 192 256 6 15GB
+
+sbatch -p test -n 2 --ntasks-per-node 1 --output=test1.out run ./start.py 15 5 5 10GB
+sbatch -p test -n 3 --ntasks-per-node 1 --output=test2.out run ./start.py 30 10 5 10GB
+sbatch -p test -n 5 --ntasks-per-node 1 --output=test4.out run ./start.py 60 20 5 10GB
+sbatch -p test -n 9 --ntasks-per-node 1 --output=test8.out run ./start.py 135 45 5 10GB
+sbatch -p test -n 17 --ntasks-per-node 1 --output=test16.out run ./start.py 320 320 5 59GB
+sbatch -p test -n 33 --ntasks-per-node 1 --output=test32.out run ./start.py 640 640 5 59GB
+
+sbatch -p test -n 15 --ntasks-per-node 1 --output=test14.out run ./start.py 192 280 5 59GB
+
+sbatch -n 2 --ntasks-per-node 1 --output=test11.out run ./start.py 192 20 20 59GB
+sbatch -n 3 --ntasks-per-node 1 --output=test22.out run ./start.py 192 40 20 59GB
+sbatch -n 5 --ntasks-per-node 1 --output=test44.out run ./start.py 192 80 20 59GB
+sbatch -n 9 --ntasks-per-node 1 --output=test88.out run ./start.py 192 160 20 59GB
+sbatch -n 17 --ntasks-per-node 1 --output=test1616.out run ./start.py 192 320 20 59GB
+sbatch -n 33 --ntasks-per-node 1 --output=test3232.out run ./start.py 192 640 20 59GB
+
+sbatch -n 2 --ntasks-per-node 1 --output=test11.out run ./start.py 192 4 6 15GB
+sbatch -n 3 --ntasks-per-node 1 --output=test22.out run ./start.py 192 8 6 15GB
+sbatch -n 5 --ntasks-per-node 1 --output=test44.out run ./start.py 192 32 6 15GB
+sbatch -n 9 --ntasks-per-node 1 --output=test88.out run ./start.py 192 64 6 15GB
+sbatch -n 17 --ntasks-per-node 1 --output=test1616.out run ./start.py 192 128 6 15GB
+sbatch -n 33 --ntasks-per-node 1 --output=test3232.out run ./start.py 192 256 6 15GB
+
+
+./gen_RMAT -s 18 > test_test && ./gen_valid_info -in rmat-18 && ./mst_reference -in rmat-18 && ./validation -in_graph rmat-18 -in_result rmat-18.mst -in_valid rmat-18.vinfo
+spark-submit --class com.wrapper.BoruvkaAlgorithm --master local[4] target/scala-2.11/boruvka_2.11-0.1-SNAPSHOT.jar

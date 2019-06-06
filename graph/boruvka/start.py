@@ -63,13 +63,13 @@ if rank == "0":
     #                                   "--executor-memory", "14GB",
     #                                   "sparkpi.jar", "24"])
     output = subprocess.check_output(["./spark/bin/spark-submit",
-                                    "--conf", "spark.sql.shuffle.partitions=" + str(sys.argv[1]),
-                                    "--class", "com.wrapper.BoruvkaAlgorithm",
-                                    "--master", masterAddress,
-                                    "--total-executor-cores", str(sys.argv[2]),
-                                    "--executor-cores", str(sys.argv[3]),
-                                    "--executor-memory", str(sys.argv[4]),
-                                    "boruvka_2.11-0.1-SNAPSHOT.jar"])
+                                      "--conf", "spark.sql.shuffle.partitions=" + str(sys.argv[1]),
+                                      "--class", "com.wrapper.BoruvkaAlgorithm",
+                                      "--master", masterAddress,
+                                      "--total-executor-cores", str(sys.argv[2]),
+                                      "--executor-cores", str(sys.argv[3]),
+                                      "--executor-memory", str(sys.argv[4]),
+                                      "boruvka_2.11-0.1-SNAPSHOT.jar"])
     print(output)
 
     # Create finish file to signal slaves to stop
