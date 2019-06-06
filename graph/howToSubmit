@@ -13,7 +13,7 @@ sbatch -p test -n 9 --ntasks-per-node 1 --output=test8.out run ./start.py 135 32
 sbatch -p test -n 17 --ntasks-per-node 1 --output=test16.out run ./start.py 320 320 5 59GB
 sbatch -p test -n 33 --ntasks-per-node 1 --output=test32.out run ./start.py 640 640 5 59GB
 
-sbatch -p test -n 15 --ntasks-per-node 1 --output=test14.out run ./start.py 192 280 5 59GB
+sbatch -p test -n 15 --ntasks-per-node 1 --output=test14.out run ./start.py 210 56 6 59GB
 
 sbatch -n 2 --ntasks-per-node 1 --output=test11.out run ./start.py 192 20 20 59GB
 sbatch -n 3 --ntasks-per-node 1 --output=test22.out run ./start.py 192 40 20 59GB
