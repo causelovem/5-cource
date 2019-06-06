@@ -4,7 +4,7 @@
 		module="boruvka-build"
 		revision="0.1-SNAPSHOT"
 		status="integration"
-		publication="20190519173011"
+		publication="20190606193306"
 		e:sbtVersion="0.13" e:scalaVersion="2.10"
 	>
 		<description>
