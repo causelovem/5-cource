@@ -85,6 +85,8 @@ object BoruvkaAlgorithm
         // clear edges from loop edges
         var remainingEdges = clearGraph.edges.filter(edge => edge.srcId != edge.dstId).cache()
 
+        // remainingEdges = Graph(verts, remainingEdges).reverse.edges union remainingEdges
+
         val start = System.nanoTime
         // number of remaining edges
         var remainingEdgesCount = remainingEdges.count
@@ -102,13 +104,15 @@ object BoruvkaAlgorithm
             // s = System.nanoTime
 
             // find min edges
-            // val minEdges = unionEdges.join(verts).map{case (vertID, (edge, grp)) => (grp, edge)}.reduceByKey((edge1, edge2) => findMinEdge(edge1, edge2))
             val minEdges = verts.join(unionEdges).map{case (vertID, (grp, edge)) => (grp, edge)}.reduceByKey((edge1, edge2) => findMinEdge(edge1, edge2))
             // val minEdgesDistinct = minEdges.values.distinct
-            val minEdgesDistinct = EdgeRDD.fromEdges(minEdges.values.distinct)
+            val minEdgesDistinct = EdgeRDD.fromEdges(minEdges.values.distinct).cache()
+            minEdgesDistinct.count()
+
+            // val minEdgesDistinct = Graph(verts, remainingEdges).groupEdges((attr1, attr2) => math.min(attr1, attr2)).edges.distinct
 
             // add min edges to final edges
-            finalEdges = (finalEdges ++ minEdgesDistinct).cache()
+            finalEdges = finalEdges ++ minEdgesDistinct
             finalEdges.count()
 
             // println("finalEdges time = " + (System.nanoTime - s) / 1e9d)
