@@ -1,4 +1,3 @@
-
 sbatch -p test -n 2 --ntasks-per-node 1 --output=test1.out run ./start.py 192 4 6 15GB
 sbatch -p test -n 3 --ntasks-per-node 1 --output=test2.out run ./start.py 192 8 6 15GB
 sbatch -p test -n 5 --ntasks-per-node 1 --output=test4.out run ./start.py 192 32 6 15GB
@@ -31,4 +30,5 @@ sbatch -n 33 --ntasks-per-node 1 --output=test3232.out run ./start.py 192 256 6 
 
 
 ./gen_RMAT -s 18 > test_test && ./gen_valid_info -in rmat-18 && ./mst_reference -in rmat-18 && ./validation -in_graph rmat-18 -in_result rmat-18.mst -in_valid rmat-18.vinfo
-spark-submit --class com.wrapper.BoruvkaAlgorithm --master local[4] target/scala-2.11/boruvka_2.11-0.1-SNAPSHOT.jar
+
+spark-submit --conf spark.default.parallelism=4 --conf spark.sql.shuffle.partitions=4 --class com.wrapper.BoruvkaAlgorithm --master local[4] target/scala-2.11/boruvka_2.11-0.1-SNAPSHOT.jar

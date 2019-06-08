@@ -1,3 +1,16 @@
+package com.wrapper
+
+// import org.apache.spark.{SparkConf, SparkContext}
+// import org.apache.spark.sql.SQLContext
+// import org.apache.spark.sql.SparkSession
+// import scala.io.Source
+
+
+import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.sql.SQLContext
+import org.apache.spark.sql.SparkSession
+import scala.io.Source
+
 import org.apache.spark._
 import org.apache.spark.graphx._
 import org.apache.spark.rdd.RDD
@@ -5,7 +18,8 @@ import scala.collection.mutable.ListBuffer
 
 object BoruvkaAlgorithm
 {
-    val sparkSession = SparkSession.builder().master("local").appName("boruvka").getOrCreate()
+    // val sparkSession = SparkSession.builder().master("local").appName("boruvka").getOrCreate()
+    val sparkSession = SparkSession.builder().appName("boruvka").getOrCreate()
     val sparkContext = sparkSession.sparkContext
     sparkContext.setLogLevel("ERROR")
     sparkContext.setCheckpointDir("tmp/")
@@ -57,7 +71,7 @@ object BoruvkaAlgorithm
     def buildMst(graph: Graph[Long,Double]): Graph[Long,Double] =
     {
         // clear graph from multi edges: take min on them
-        val clearGraph = graph.groupEdges((attr1, attr2) => math.min(attr1, attr2)).cache()
+        val clearGraph = graph.groupEdges((attr1, attr2) => math.min(attr1, attr2))
 
         // println(graph.numEdges)
         // println(clearGraph.numEdges)
@@ -66,7 +80,8 @@ object BoruvkaAlgorithm
         var finalEdges = clearGraph.edges.filter(edge => edge.srcId == -1)
 
         // vertices and edges to process
-        var verts = clearGraph.vertices.cache()
+        var verts = clearGraph.vertices
+        var vertsCopy = clearGraph.vertices
         // clear edges from loop edges
         var remainingEdges = clearGraph.edges.filter(edge => edge.srcId != edge.dstId).cache()
 
@@ -76,11 +91,15 @@ object BoruvkaAlgorithm
         println("remainingEdgesCount = " + remainingEdgesCount)
         while (remainingEdgesCount != 0)
         {
+            var st = System.nanoTime
             // retrieve key (src) for join from edge
             val keyGenEdges = remainingEdges.map( edge => (edge.srcId, edge))
             // graph is not oriented: "reverse" edge
             val opositKeyGenEdges = remainingEdges.map( edge => (edge.dstId, edge))
             var unionEdges = keyGenEdges union opositKeyGenEdges
+
+            // println("unionEdges time = " + (System.nanoTime - s) / 1e9d)
+            // s = System.nanoTime
 
             // find min edges
             // val minEdges = unionEdges.join(verts).map{case (vertID, (edge, grp)) => (grp, edge)}.reduceByKey((edge1, edge2) => findMinEdge(edge1, edge2))
@@ -89,41 +108,56 @@ object BoruvkaAlgorithm
             val minEdgesDistinct = EdgeRDD.fromEdges(minEdges.values.distinct)
 
             // add min edges to final edges
-            finalEdges = finalEdges ++ minEdgesDistinct
+            finalEdges = (finalEdges ++ minEdgesDistinct).cache()
+            finalEdges.count()
+
+            // println("finalEdges time = " + (System.nanoTime - s) / 1e9d)
+            // s = System.nanoTime
+
             // update vertices group
-            verts = Graph(verts, finalEdges).connectedComponents().vertices.cache()
-            // println(verts.collect.toList)
+            verts = Graph(verts, minEdgesDistinct).connectedComponents().vertices.cache()
+            verts.count()
+
+            // println("verts time = " + (System.nanoTime - s) / 1e9d)
+            // s = System.nanoTime
 
             // subtract min edges from all edges
             // remainingEdges = remainingEdges.subtract(minEdgesDistinct)
 
+            // "rebuild" each edge: change srcId and dstId due to connectedComponents
             // retrieve group of src vertex of edge
-            val edgesWithSrcGrp = remainingEdges.map(edge => (edge.srcId, edge)).join(verts).map{case (vertID, (edge, grp)) => (edge.dstId, (edge, grp))}
+            val edgesWithSrcGrp = remainingEdges.map(edge => (edge.srcId, (edge.dstId, edge.attr))).join(verts).map{case (vertID, ((eDstId, eAttr), grp)) => (eDstId, (eAttr, grp))}
             // retrieve also group of dst vertex of edge
-            val edgesWithSrcAndDstGrp = edgesWithSrcGrp.join(verts).map{case (vertID, ((edge, grp1), grp2)) => (edge, grp1, grp2)}
+            val edgesWithSrcAndDstGrp = edgesWithSrcGrp.join(verts).map{case (vertID, ((eAttr, srcGrp), dstGrp)) => (Edge(srcGrp, dstGrp, eAttr), srcGrp, dstGrp)}
             // take edges which are not in the same group
-            val preRemainingEdges = edgesWithSrcAndDstGrp.filter{case (edge, grp1, grp2) => grp1 != grp2}.map{case (edge, grp1, grp2) => edge}
+            val preRemainingEdges = edgesWithSrcAndDstGrp.filter{case (edge, srcGrp, dstGrp) => srcGrp != dstGrp}.map{case (edge, srcGrp, dstGrp) => edge}
             
             // remaining edges to process
             // remainingEdges = EdgeRDD.fromEdges(preRemainingEdges)
             remainingEdges = preRemainingEdges.cache()
             // count remaining edges
-            remainingEdgesCount = remainingEdges.count
+            remainingEdgesCount = remainingEdges.count()
+
+            // colapse vertices with one group to Super vertex
+            verts = VertexRDD(verts.map{case (vertID, grp) => (grp, grp)}.distinct).cache()
+            verts.count()
+
+            // println("remainingEdges time = " + (System.nanoTime - s) / 1e9d)
             println("remainingEdgesCount = " + remainingEdgesCount)
+            println("Iter time = " + (System.nanoTime - st) / 1e9d)
         }
         val end = (System.nanoTime - start) / 1e9d
         println("Computational time = " + end)
-        // finalEdges.collect
-        // verts.collect
-        return Graph(verts, finalEdges)
+        return Graph(vertsCopy, finalEdges)
     }
 
     def main(args: Array[String]): Unit =
     {
         // read file with graph
-        // val file = sc.textFile("/mnt/f/prog/5-course/graph/test_graph_not_binary_1")
-        // val file = sc.textFile("/mnt/f/prog/5-course/graph/test_test")
-        val file = sc.textFile("/mnt/d/prog/5-course/graph/test_test")
+        // val file = sparkContext.textFile("/mnt/f/prog/5-course/graph/test_graph_not_binary_1")
+        // val file = sparkContext.textFile("/mnt/f/prog/5-course/graph/test_test")
+        val file = sparkContext.textFile("test_test")
+        // val file = sparkContext.textFile("/mnt/d/prog/5-course/graph/test_test")
 
         // make edges and vertices from file
         val edgesForGraph = file.flatMap(line => makeEdges(line))
@@ -141,12 +175,13 @@ object BoruvkaAlgorithm
         val mst = buildMst(graph)
 
         val end = (System.nanoTime - start) / 1e9d
-        // end
+        // println(end)
 
         // mst info
-        mst.numVertices
-        mst.numEdges
+        println(mst.numVertices)
+        println(mst.numEdges)
+
         val finalWeight = mst.edges.map(edge => edge.attr).sum
-        // finalWeight
+        println(finalWeight)
     }
 }
