@@ -88,7 +88,7 @@ object BoruvkaAlgorithm
 
         val start = System.nanoTime
         // number of remaining edges
-        var remainingEdgesCount = remainingEdges.count
+        var remainingEdgesCount = remainingEdges.count()
         println("remainingEdgesCount = " + remainingEdgesCount)
         while (remainingEdgesCount != 0)
         {
