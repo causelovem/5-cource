@@ -82,6 +82,7 @@ object BoruvkaAlgorithm
         // vertices and edges to process
         var verts = clearGraph.vertices
         var vertsCopy = clearGraph.vertices
+
         // clear edges from loop edges
         var remainingEdges = clearGraph.edges.filter(edge => edge.srcId != edge.dstId).cache()
 
@@ -93,22 +94,21 @@ object BoruvkaAlgorithm
         {
             var st = System.nanoTime
             // retrieve key (src) for join from edge
-            val keyGenEdges = remainingEdges.map( edge => (edge.srcId, edge))
+            val keyGenEdges = remainingEdges.map(edge => (edge.srcId, edge))
             // graph is not oriented: "reverse" edge
-            val opositKeyGenEdges = remainingEdges.map( edge => (edge.dstId, edge))
+            val opositKeyGenEdges = remainingEdges.map(edge => (edge.dstId, edge))
             var unionEdges = keyGenEdges union opositKeyGenEdges
 
             // println("unionEdges time = " + (System.nanoTime - s) / 1e9d)
             // s = System.nanoTime
 
             // find min edges
-            // val minEdges = unionEdges.join(verts).map{case (vertID, (edge, grp)) => (grp, edge)}.reduceByKey((edge1, edge2) => findMinEdge(edge1, edge2))
             val minEdges = verts.join(unionEdges).map{case (vertID, (grp, edge)) => (grp, edge)}.reduceByKey((edge1, edge2) => findMinEdge(edge1, edge2))
-            // val minEdgesDistinct = minEdges.values.distinct
-            val minEdgesDistinct = EdgeRDD.fromEdges(minEdges.values.distinct)
+            val minEdgesDistinct = EdgeRDD.fromEdges(minEdges.values.distinct).cache()
+            minEdgesDistinct.count()
 
             // add min edges to final edges
-            finalEdges = (finalEdges ++ minEdgesDistinct).cache()
+            finalEdges = finalEdges union minEdgesDistinct
             finalEdges.count()
 
             // println("finalEdges time = " + (System.nanoTime - s) / 1e9d)
@@ -133,7 +133,6 @@ object BoruvkaAlgorithm
             val preRemainingEdges = edgesWithSrcAndDstGrp.filter{case (edge, srcGrp, dstGrp) => srcGrp != dstGrp}.map{case (edge, srcGrp, dstGrp) => edge}
             
             // remaining edges to process
-            // remainingEdges = EdgeRDD.fromEdges(preRemainingEdges)
             remainingEdges = preRemainingEdges.cache()
             // count remaining edges
             remainingEdgesCount = remainingEdges.count()
