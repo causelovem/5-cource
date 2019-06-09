@@ -1,0 +1,166 @@
+Intel Core i7 7700, 4 core, 2 hyper-thread
+
+
+spark-submit --conf spark.default.parallelism=1 --conf spark.sql.shuffle.partitions=1 --class com.wrapper.BoruvkaAlgorithm --master local[1] target/scala-2.11/boruvka_2.11-0.1-SNAPSHOT.jar
+
+spark-submit --conf spark.default.parallelism=2 --conf spark.sql.shuffle.partitions=2 --class com.wrapper.BoruvkaAlgorithm --master local[2] target/scala-2.11/boruvka_2.11-0.1-SNAPSHOT.jar
+
+spark-submit --conf spark.default.parallelism=3 --conf spark.sql.shuffle.partitions=3 --class com.wrapper.BoruvkaAlgorithm --master local[3] target/scala-2.11/boruvka_2.11-0.1-SNAPSHOT.jar
+
+spark-submit --conf spark.default.parallelism=4 --conf spark.sql.shuffle.partitions=4 --class com.wrapper.BoruvkaAlgorithm --master local[4] target/scala-2.11/boruvka_2.11-0.1-SNAPSHOT.jar
+
+spark-submit --conf spark.default.parallelism=5 --conf spark.sql.shuffle.partitions=5 --class com.wrapper.BoruvkaAlgorithm --master local[5] target/scala-2.11/boruvka_2.11-0.1-SNAPSHOT.jar
+
+spark-submit --conf spark.default.parallelism=6 --conf spark.sql.shuffle.partitions=6 --class com.wrapper.BoruvkaAlgorithm --master local[6] target/scala-2.11/boruvka_2.11-0.1-SNAPSHOT.jar
+
+spark-submit --conf spark.default.parallelism=7 --conf spark.sql.shuffle.partitions=7 --class com.wrapper.BoruvkaAlgorithm --master local[7] target/scala-2.11/boruvka_2.11-0.1-SNAPSHOT.jar
+
+spark-submit --conf spark.default.parallelism=8 --conf spark.sql.shuffle.partitions=8 --class com.wrapper.BoruvkaAlgorithm --master local[8] target/scala-2.11/boruvka_2.11-0.1-SNAPSHOT.jar
+
+
+### Reading graph... ###
+  Graph Vertices = 131072
+  Graph Edges = 4195225
+### Reading graph DONE ###
+
+1
+### Building MST... ###
+  remainingEdgesCount = 4177602
+  remainingEdgesCount = 3951520
+  Iter 0 time = 77.149271
+  remainingEdgesCount = 3910864
+  Iter 1 time = 36.093572
+  remainingEdgesCount = 3787386
+  Iter 2 time = 36.138057
+  remainingEdgesCount = 2906606
+  Iter 3 time = 31.561573
+  remainingEdgesCount = 0
+  Iter 4 time = 22.226799
+  Computational time = 203.172657
+  Computational time with cleaning = 204.79131
+### Building MST DONE ###
+
+2
+### Building MST... ###
+  remainingEdgesCount = 4177602
+  remainingEdgesCount = 3951520
+  Iter 0 time = 53.221484
+  remainingEdgesCount = 3910864
+  Iter 1 time = 25.548336
+  remainingEdgesCount = 3787386
+  Iter 2 time = 24.931452
+  remainingEdgesCount = 2906606
+  Iter 3 time = 23.126948
+  remainingEdgesCount = 0
+  Iter 4 time = 15.968012
+  Computational time = 142.799434
+  Computational time with cleaning = 144.499394
+### Building MST DONE ###
+
+3
+### Building MST... ###
+  remainingEdgesCount = 4177602
+  remainingEdgesCount = 3951520
+  Iter 0 time = 29.69533
+  remainingEdgesCount = 3910864
+  Iter 1 time = 24.316355
+  remainingEdgesCount = 3787386
+  Iter 2 time = 21.649878
+  remainingEdgesCount = 2906606
+  Iter 3 time = 19.203859
+  remainingEdgesCount = 0
+  Iter 4 time = 15.38321
+  Computational time = 110.2514
+  Computational time with cleaning = 112.032072
+### Building MST DONE ###
+
+4
+### Building MST... ###
+  remainingEdgesCount = 4177602
+  remainingEdgesCount = 3951520
+  Iter 0 time = 36.938306
+  remainingEdgesCount = 3910864
+  Iter 1 time = 23.457788
+  remainingEdgesCount = 3787386
+  Iter 2 time = 20.313964
+  remainingEdgesCount = 2906606
+  Iter 3 time = 20.436971
+  remainingEdgesCount = 0
+  Iter 4 time = 15.086697
+  Computational time = 116.236482
+  Computational time with cleaning = 117.860375
+### Building MST DONE ###
+
+5
+### Building MST... ###
+  remainingEdgesCount = 4177602
+  remainingEdgesCount = 3951520
+  Iter 0 time = 33.368015
+  remainingEdgesCount = 3910864
+  Iter 1 time = 24.123367
+  remainingEdgesCount = 3787386
+  Iter 2 time = 20.344845
+  remainingEdgesCount = 2906606
+  Iter 3 time = 19.847394
+  remainingEdgesCount = 0
+  Iter 4 time = 16.72824
+  Computational time = 114.414546
+  Computational time with cleaning = 116.557094
+### Building MST DONE ###
+
+6
+### Building MST... ###
+  remainingEdgesCount = 4177602
+  remainingEdgesCount = 3951520
+  Iter 0 time = 29.49172
+  remainingEdgesCount = 3910864
+  Iter 1 time = 24.728317
+  remainingEdgesCount = 3787386
+  Iter 2 time = 21.87388
+  remainingEdgesCount = 2906606
+  Iter 3 time = 19.276246
+  remainingEdgesCount = 0
+  Iter 4 time = 16.663618
+  Computational time = 112.036649
+  Computational time with cleaning = 113.800239
+### Building MST DONE ###
+
+7
+### Building MST... ###
+  remainingEdgesCount = 4177602
+  remainingEdgesCount = 3951520
+  Iter 0 time = 28.93481
+  remainingEdgesCount = 3910864
+  Iter 1 time = 23.469873
+  remainingEdgesCount = 3787386
+  Iter 2 time = 19.793574
+  remainingEdgesCount = 2906606
+  Iter 3 time = 19.577634
+  remainingEdgesCount = 0
+  Iter 4 time = 15.544843
+  Computational time = 107.323409
+  Computational time with cleaning = 109.437098
+### Building MST DONE ###
+
+8
+### Building MST... ###
+  remainingEdgesCount = 4177602
+  remainingEdgesCount = 3951520
+  Iter 0 time = 28.931647
+  remainingEdgesCount = 3910864
+  Iter 1 time = 23.738754
+  remainingEdgesCount = 3787386
+  Iter 2 time = 20.318946
+  remainingEdgesCount = 2906606
+  Iter 3 time = 18.939741
+  remainingEdgesCount = 0
+  Iter 4 time = 16.381369
+  Computational time = 108.313035
+  Computational time with cleaning = 110.246045
+### Building MST DONE ###
+
+### MST info... ###
+  MST Vertices = 131072
+  MST Edges = 130150
+  MST Weight = 12330.022506999996
+### MST info DONE ###

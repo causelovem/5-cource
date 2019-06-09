@@ -68,7 +68,7 @@ object BoruvkaAlgorithm
     }
 
     // build mst with Boruvka's algorithm
-    def buildMst(graph: Graph[Long,Double]): Graph[Long,Double] =
+    def buildMst(graph: Graph[Long, Double]): Graph[Long, Double] =
     {
         // clear graph from multi edges: take min on them
         val clearGraph = graph.groupEdges((attr1, attr2) => math.min(attr1, attr2))
@@ -86,10 +86,12 @@ object BoruvkaAlgorithm
         // clear edges from loop edges
         var remainingEdges = clearGraph.edges.filter(edge => edge.srcId != edge.dstId).cache()
 
-        val start = System.nanoTime
         // number of remaining edges
         var remainingEdgesCount = remainingEdges.count()
-        println("remainingEdgesCount = " + remainingEdgesCount)
+        println("  remainingEdgesCount = " + remainingEdgesCount)
+
+        var iterCnt = 0L
+        val start = System.nanoTime
         while (remainingEdgesCount != 0)
         {
             var st = System.nanoTime
@@ -142,18 +144,19 @@ object BoruvkaAlgorithm
             verts.count()
 
             // println("remainingEdges time = " + (System.nanoTime - s) / 1e9d)
-            println("remainingEdgesCount = " + remainingEdgesCount)
-            println("Iter time = " + (System.nanoTime - st) / 1e9d)
+            println("  remainingEdgesCount = " + remainingEdgesCount)
+            println("  Iter " + iterCnt + " time = " + (System.nanoTime - st) / 1e9d)
+            iterCnt += 1
         }
         val end = (System.nanoTime - start) / 1e9d
-        println("Computational time = " + end)
+        println("  Computational time = " + end)
         return Graph(vertsCopy, finalEdges)
     }
 
     def main(args: Array[String]): Unit =
     {
         // read file with graph
-        // val file = sparkContext.textFile("/mnt/f/prog/5-course/graph/test_graph_not_binary_1")
+        println("### Reading graph... ###")
         // val file = sparkContext.textFile("/mnt/f/prog/5-course/graph/test_test")
         val file = sparkContext.textFile("test_test")
         // val file = sparkContext.textFile("/mnt/d/prog/5-course/graph/test_test")
@@ -165,22 +168,28 @@ object BoruvkaAlgorithm
         // make graph
         val vertsForGraphVR: VertexRDD[Long] = VertexRDD(vertsForGraph)
         val edgesForGraphER: EdgeRDD[Double] = EdgeRDD.fromEdges(edgesForGraph)
-        val graph = Graph(vertsForGraphVR, edgesForGraphER).partitionBy(PartitionStrategy.RandomVertexCut)
+        val graph = Graph(vertsForGraphVR, edgesForGraphER).partitionBy(PartitionStrategy.RandomVertexCut).cache()
+        println("  Graph Vertices = " + graph.numVertices)
+        println("  Graph Edges = " + graph.numEdges)
+        println("### Reading graph DONE ###")
         // CanonicalRandomVertexCut, EdgePartition1D, EdgePartition2D, RandomVertexCut
 
         // build mst from graph
+        println("### Building MST... ###")
         val start = System.nanoTime
 
         val mst = buildMst(graph)
 
         val end = (System.nanoTime - start) / 1e9d
-        // println(end)
+        println("  Computational time with cleaning = " + end)
+        println("### Building MST DONE ###")
 
         // mst info
-        println(mst.numVertices)
-        println(mst.numEdges)
-
+        println("### MST info... ###")
         val finalWeight = mst.edges.map(edge => edge.attr).sum
-        println(finalWeight)
+        println("  MST Vertices = " + mst.numVertices)
+        println("  MST Edges = " + mst.numEdges)
+        println("  MST Weight = " + finalWeight)
+        println("### MST info DONE ###")
     }
 }
